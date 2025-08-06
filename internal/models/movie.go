@@ -61,9 +61,52 @@ type TVShow struct {
 	Seasons             []Season            `json:"seasons,omitempty"`
 }
 
+// MultiSearchResult для мультипоиска
+type MultiSearchResult struct {
+	ID               int     `json:"id"`
+	MediaType        string  `json:"media_type"` // "movie" или "tv"
+	Title            string  `json:"title,omitempty"`       // для фильмов
+	Name             string  `json:"name,omitempty"`        // для сериалов
+	OriginalTitle    string  `json:"original_title,omitempty"`
+	OriginalName     string  `json:"original_name,omitempty"`
+	Overview         string  `json:"overview"`
+	PosterPath       string  `json:"poster_path"`
+	BackdropPath     string  `json:"backdrop_path"`
+	ReleaseDate      string  `json:"release_date,omitempty"`     // для фильмов
+	FirstAirDate     string  `json:"first_air_date,omitempty"`   // для сериалов
+	GenreIDs         []int   `json:"genre_ids"`
+	VoteAverage      float64 `json:"vote_average"`
+	VoteCount        int     `json:"vote_count"`
+	Popularity       float64 `json:"popularity"`
+	Adult            bool    `json:"adult"`
+	OriginalLanguage string  `json:"original_language"`
+	OriginCountry    []string `json:"origin_country,omitempty"`
+}
+
+type MultiSearchResponse struct {
+	Page         int                 `json:"page"`
+	Results      []MultiSearchResult `json:"results"`
+	TotalPages   int                 `json:"total_pages"`
+	TotalResults int                 `json:"total_results"`
+}
+
 type Genre struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+type GenresResponse struct {
+	Genres []Genre `json:"genres"`
+}
+
+type ExternalIDs struct {
+	ID          int    `json:"id"`
+	IMDbID      string `json:"imdb_id"`
+	TVDBID      int    `json:"tvdb_id,omitempty"`
+	WikidataID  string `json:"wikidata_id"`
+	FacebookID  string `json:"facebook_id"`
+	InstagramID string `json:"instagram_id"`
+	TwitterID   string `json:"twitter_id"`
 }
 
 type Collection struct {
@@ -144,4 +187,47 @@ type APIResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
 	Message string      `json:"message,omitempty"`
+}
+
+// Модели для торрентов
+type TorrentResult struct {
+	Title       string `json:"title"`
+	Size        string `json:"size"`
+	Seeders     int    `json:"seeders"`
+	Leechers    int    `json:"leechers"`
+	Quality     string `json:"quality"`
+	Type        string `json:"type"`
+	MagnetLink  string `json:"magnet_link"`
+	TorrentLink string `json:"torrent_link"`
+	AddedDate   string `json:"added_date"`
+}
+
+type TorrentSearchResponse struct {
+	Query   string          `json:"query"`
+	Results []TorrentResult `json:"results"`
+	Total   int             `json:"total"`
+}
+
+// Модели для плееров
+type PlayerResponse struct {
+	Type   string `json:"type"`
+	URL    string `json:"url"`
+	Iframe string `json:"iframe,omitempty"`
+}
+
+// Модели для реакций
+type Reaction struct {
+	ID       string `json:"id" bson:"_id,omitempty"`
+	UserID   string `json:"userId" bson:"userId"`
+	MediaID  string `json:"mediaId" bson:"mediaId"`
+	Type     string `json:"type" bson:"type"`
+	Created  string `json:"created" bson:"created"`
+}
+
+type ReactionCounts struct {
+	Fire  int `json:"fire"`
+	Nice  int `json:"nice"`
+	Think int `json:"think"`
+	Bore  int `json:"bore"`
+	Shit  int `json:"shit"`
 }

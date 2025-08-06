@@ -33,7 +33,7 @@ func main() {
 	defer database.Disconnect()
 
 	// Инициализируем сервисы
-	tmdbService := services.NewTMDBService(cfg.TMDBAPIKey)
+	tmdbService := services.NewTMDBService(cfg.TMDBAccessToken)
 	authService := services.NewAuthService(db, cfg.JWTSecret)
 	movieService := services.NewMovieService(db, tmdbService)
 	tvService := services.NewTVService(db, tmdbService)
@@ -43,6 +43,9 @@ func main() {
 	movieHandler := appHandlers.NewMovieHandler(movieService)
 	tvHandler := appHandlers.NewTVHandler(tvService)
 	docsHandler := appHandlers.NewDocsHandler()
+	searchHandler := appHandlers.NewSearchHandler(tmdbService)
+	categoriesHandler := appHandlers.NewCategoriesHandler(tmdbService)
+	playersHandler := appHandlers.NewPlayersHandler(cfg)
 
 	// Настраиваем маршруты
 	r := mux.NewRouter()
@@ -59,6 +62,17 @@ func main() {
 	api.HandleFunc("/health", appHandlers.HealthCheck).Methods("GET")
 	api.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
 	api.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
+
+	// Поиск
+	r.HandleFunc("/search/multi", searchHandler.MultiSearch).Methods("GET")
+
+	// Категории
+	api.HandleFunc("/categories", categoriesHandler.GetCategories).Methods("GET")
+	api.HandleFunc("/categories/{id}/movies", categoriesHandler.GetMoviesByCategory).Methods("GET")
+
+	// Плееры
+	api.HandleFunc("/players/alloha", playersHandler.GetAllohaPlayer).Methods("GET")
+	api.HandleFunc("/players/lumex", playersHandler.GetLumexPlayer).Methods("GET")
 
 	// Маршруты для фильмов (некоторые публичные, некоторые приватные)
 	api.HandleFunc("/movies/search", movieHandler.Search).Methods("GET")
