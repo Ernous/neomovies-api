@@ -284,7 +284,7 @@ curl "https://api.neomovies.ru/api/v1/torrents/search/tt0111161?type=movie&quali
 
 ## 📄 Лицензия
 
-MIT License - подробности в файле [LICENSE](LICENSE)
+Apache License 2.0 - подробности в файле [LICENSE](LICENSE)
 
 ---
 
