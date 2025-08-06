@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 )
 
@@ -18,8 +19,12 @@ type Config struct {
 }
 
 func New() *Config {
+	// Добавляем отладочное логирование для Vercel
+	mongoURI := getMongoURI()
+	log.Printf("DEBUG: MongoDB URI configured (length: %d)", len(mongoURI))
+	
 	return &Config{
-		MongoURI:        getEnv("MONGO_URI", "mongodb://localhost:27017/neomovies"),
+		MongoURI:        mongoURI,
 		TMDBAccessToken: getEnv("TMDB_ACCESS_TOKEN", ""),
 		JWTSecret:       getEnv("JWT_SECRET", "your-secret-key"),
 		Port:            getEnv("PORT", "3000"),
@@ -30,6 +35,22 @@ func New() *Config {
 		LumexURL:        getEnv("LUMEX_URL", ""),
 		AllohaToken:     getEnv("ALLOHA_TOKEN", ""),
 	}
+}
+
+// getMongoURI проверяет различные варианты названий переменных для MongoDB URI
+func getMongoURI() string {
+	// Проверяем различные возможные названия переменных
+	envVars := []string{"MONGO_URI", "MONGODB_URI", "DATABASE_URL", "MONGO_URL"}
+	
+	for _, envVar := range envVars {
+		if value := os.Getenv(envVar); value != "" {
+			log.Printf("DEBUG: Using %s for MongoDB connection", envVar)
+			return value
+		}
+	}
+	
+	log.Printf("DEBUG: No MongoDB URI found, using default localhost")
+	return "mongodb://localhost:27017/neomovies"
 }
 
 func getEnv(key, defaultValue string) string {
