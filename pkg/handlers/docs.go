@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/MarceloPetrucio/go-scalar-api-reference"
 )
 
 type DocsHandler struct {
@@ -43,59 +45,20 @@ func (h *DocsHandler) ServeDocs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Создаем HTML с встроенной спецификацией
-	htmlContent := fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head>
-    <title>Neo Movies API Documentation</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-    </style>
-</head>
-<body>
-    <div id="api-reference"></div>
-    <script type="module">
-        import { createApiReference } from 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@latest/dist/browser/standalone.js'
-        
-        createApiReference({
-            element: '#api-reference',
-            configuration: {
-                theme: 'saturn',
-                layout: 'modern',
-                defaultHttpClient: {
-                    targetKey: 'javascript',
-                    clientKey: 'fetch'
-                },
-                authentication: {
-                    securitySchemes: {
-                        bearerAuth: {
-                            type: 'http',
-                            scheme: 'bearer',
-                            bearerFormat: 'JWT'
-                        }
-                    }
-                },
-                spec: {
-                    url: '%s/openapi.json'
-                },
-                metadata: {
-                    title: 'Neo Movies API',
-                    description: 'Современный API для поиска фильмов и сериалов с поддержкой авторизации',
-                    favicon: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference/dist/browser/favicon.ico'
-                }
-            }
-        })
-    </script>
-</body>
-</html>`, baseURL)
+	htmlContent, err := scalar.ApiReferenceHTML(&scalar.Options{
+		SpecURL: fmt.Sprintf("%s/openapi.json", baseURL),
+		CustomOptions: scalar.CustomOptions{
+			PageTitle: "Neo Movies API Documentation",
+		},
+		DarkMode: true,
+	})
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err != nil {
+		fmt.Printf("Error generating documentation: %v", err)
+		http.Error(w, fmt.Sprintf("Error generating documentation: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	fmt.Fprintln(w, htmlContent)
 }
 
