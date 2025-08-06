@@ -3,17 +3,16 @@ package handler
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 
-	"neomovies-api/internal/config"
-	"neomovies-api/internal/database"
-	handlersPkg "neomovies-api/internal/handlers"
-	"neomovies-api/internal/middleware"
-	"neomovies-api/internal/services"
+	"neomovies-api/pkg/config"
+	"neomovies-api/pkg/database"
+	handlersPkg "neomovies-api/pkg/handlers"
+	"neomovies-api/pkg/middleware"
+	"neomovies-api/pkg/services"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {

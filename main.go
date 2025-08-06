@@ -9,11 +9,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 
-	"neomovies-api/internal/config"
-	"neomovies-api/internal/database"
-	appHandlers "neomovies-api/internal/handlers"
-	"neomovies-api/internal/middleware"
-	"neomovies-api/internal/services"
+	"neomovies-api/pkg/config"
+	"neomovies-api/pkg/database"
+	appHandlers "neomovies-api/pkg/handlers"
+	"neomovies-api/pkg/middleware"
+	"neomovies-api/pkg/services"
 )
 
 func main() {
