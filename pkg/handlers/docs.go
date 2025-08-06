@@ -34,13 +34,11 @@ func (h *DocsHandler) GetOpenAPISpec(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *DocsHandler) ServeDocs(w http.ResponseWriter, r *http.Request) {
-	baseURL := os.Getenv("BASE_URL")
-	if baseURL == "" {
-		if r.TLS != nil {
-			baseURL = fmt.Sprintf("https://%s", r.Host)
-		} else {
-			baseURL = fmt.Sprintf("http://%s", r.Host)
-		}
+	// Сериализуем OpenAPI спецификацию в JSON
+	specJSON, err := json.Marshal(h.openAPISpec)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error serializing OpenAPI spec: %v", err), http.StatusInternalServerError)
+		return
 	}
 
 	// Создаем HTML с встроенной спецификацией
@@ -82,7 +80,7 @@ func (h *DocsHandler) ServeDocs(w http.ResponseWriter, r *http.Request) {
                     }
                 },
                 spec: {
-                    url: '%s/openapi.json'
+                    content: %s
                 },
                 metadata: {
                     title: 'Neo Movies API',
@@ -93,7 +91,7 @@ func (h *DocsHandler) ServeDocs(w http.ResponseWriter, r *http.Request) {
         })
     </script>
 </body>
-</html>`, baseURL)
+</html>`, string(specJSON))
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintln(w, htmlContent)
