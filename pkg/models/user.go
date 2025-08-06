@@ -18,8 +18,8 @@ type User struct {
 	VerificationExpires time.Time         `json:"-" bson:"verificationExpires,omitempty"`
 	IsAdmin            bool               `json:"isAdmin" bson:"isAdmin"`
 	AdminVerified      bool               `json:"adminVerified" bson:"adminVerified"`
-	CreatedAt          time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt          time.Time          `json:"updated_at" bson:"updated_at"`
+	CreatedAt          time.Time          `json:"created_at" bson:"createdAt"`
+	UpdatedAt          time.Time          `json:"updated_at" bson:"updatedAt"`
 }
 
 type LoginRequest struct {
