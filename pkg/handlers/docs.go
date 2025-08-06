@@ -19,13 +19,9 @@ func NewDocsHandler() *DocsHandler {
 }
 
 func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Обслуживаем статические файлы для документации
-	if r.URL.Path == "/" {
-		h.serveDocs(w, r)
-		return
-	}
-	
-	http.NotFound(w, r)
+	// Обслуживаем документацию для всех путей
+	// Это нужно для правильной работы Scalar API Reference
+	h.serveDocs(w, r)
 }
 
 func (h *DocsHandler) RedirectToDocs(w http.ResponseWriter, r *http.Request) {

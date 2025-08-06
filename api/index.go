@@ -3,7 +3,6 @@ package handler
 import (
 	"log"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/gorilla/handlers"
@@ -29,18 +28,6 @@ func initializeApp() {
 	// Загружаем переменные окружения (в Vercel они уже установлены)
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: .env file not found (normal for Vercel)")
-	}
-
-	// Логируем важные переменные окружения для отладки
-	log.Printf("DEBUG: Environment variables check:")
-	envVars := []string{"MONGO_URI", "MONGODB_URI", "DATABASE_URL", "MONGO_URL", "TMDB_ACCESS_TOKEN", "JWT_SECRET"}
-	for _, envVar := range envVars {
-		value := os.Getenv(envVar)
-		if value != "" {
-			log.Printf("DEBUG: %s is set (length: %d)", envVar, len(value))
-		} else {
-			log.Printf("DEBUG: %s is NOT set", envVar)
-		}
 	}
 
 	// Инициализируем конфигурацию
