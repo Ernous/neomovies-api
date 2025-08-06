@@ -91,12 +91,16 @@ func (s *AuthService) Register(req models.RegisterRequest) (map[string]interface
 func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, error) {
 	collection := s.db.Collection("users")
 
+	fmt.Printf("Attempting to find user with email: %s\n", req.Email)
+	
 	var user models.User
 	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
-		fmt.Printf("Login error: user not found for email %s\n", req.Email)
+		fmt.Printf("Login error: user not found for email %s, error: %v\n", req.Email, err)
 		return nil, errors.New("User not found")
 	}
+	
+	fmt.Printf("User found: ID=%s, Email=%s, Verified=%v\n", user.ID.Hex(), user.Email, user.Verified)
 
 	// Проверяем верификацию email
 	if !user.Verified {
