@@ -90,7 +90,36 @@ func (s *TMDBService) SearchMulti(query string, page int, language string) (*mod
 	
 	var response models.MultiSearchResponse
 	err := s.makeRequest(endpoint, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Фильтруем результаты, убираем записи без названий и людей без постеров
+	filteredResults := make([]models.MultiSearchResult, 0)
+	for _, result := range response.Results {
+		// Пропускаем людей (persons)
+		if result.MediaType == "person" {
+			continue
+		}
+		
+		// Проверяем наличие названия для фильмов и сериалов
+		hasTitle := false
+		if result.MediaType == "movie" && result.Title != "" {
+			hasTitle = true
+		} else if result.MediaType == "tv" && result.Name != "" {
+			hasTitle = true
+		}
+		
+		// Добавляем только записи с названием
+		if hasTitle {
+			filteredResults = append(filteredResults, result)
+		}
+	}
+	
+	response.Results = filteredResults
+	response.TotalResults = len(filteredResults)
+	
+	return &response, nil
 }
 
 func (s *TMDBService) SearchTVShows(query string, page int, language string, firstAirDateYear int) (*models.TMDBTVResponse, error) {
