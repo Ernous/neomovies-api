@@ -34,9 +34,12 @@ func main() {
 
 	// Инициализируем сервисы
 	tmdbService := services.NewTMDBService(cfg.TMDBAccessToken)
-	authService := services.NewAuthService(db, cfg.JWTSecret)
+	emailService := services.NewEmailService(cfg)
+	authService := services.NewAuthService(db, cfg.JWTSecret, emailService)
 	movieService := services.NewMovieService(db, tmdbService)
 	tvService := services.NewTVService(db, tmdbService)
+	torrentService := services.NewTorrentService()
+	reactionsService := services.NewReactionsService(db)
 
 	// Создаем обработчики
 	authHandler := appHandlers.NewAuthHandler(authService)
@@ -46,6 +49,9 @@ func main() {
 	searchHandler := appHandlers.NewSearchHandler(tmdbService)
 	categoriesHandler := appHandlers.NewCategoriesHandler(tmdbService)
 	playersHandler := appHandlers.NewPlayersHandler(cfg)
+	torrentsHandler := appHandlers.NewTorrentsHandler(torrentService, tmdbService)
+	reactionsHandler := appHandlers.NewReactionsHandler(reactionsService)
+	imagesHandler := appHandlers.NewImagesHandler()
 
 	// Настраиваем маршруты
 	r := mux.NewRouter()
@@ -73,6 +79,15 @@ func main() {
 	// Плееры
 	api.HandleFunc("/players/alloha", playersHandler.GetAllohaPlayer).Methods("GET")
 	api.HandleFunc("/players/lumex", playersHandler.GetLumexPlayer).Methods("GET")
+
+	// Торренты
+	api.HandleFunc("/torrents/search/{imdbId}", torrentsHandler.SearchTorrents).Methods("GET")
+
+	// Реакции (публичные)
+	api.HandleFunc("/reactions/{mediaType}/{mediaId}/counts", reactionsHandler.GetReactionCounts).Methods("GET")
+
+	// Изображения (прокси для TMDB)
+	api.HandleFunc("/images/{size}/{path:.*}", imagesHandler.GetImage).Methods("GET")
 
 	// Маршруты для фильмов (некоторые публичные, некоторые приватные)
 	api.HandleFunc("/movies/search", movieHandler.Search).Methods("GET")
@@ -106,6 +121,12 @@ func main() {
 	// Пользовательские данные
 	protected.HandleFunc("/auth/profile", authHandler.GetProfile).Methods("GET")
 	protected.HandleFunc("/auth/profile", authHandler.UpdateProfile).Methods("PUT")
+
+	// Реакции (приватные)
+	protected.HandleFunc("/reactions/{mediaType}/{mediaId}/my-reaction", reactionsHandler.GetMyReaction).Methods("GET")
+	protected.HandleFunc("/reactions/{mediaType}/{mediaId}", reactionsHandler.SetReaction).Methods("POST")
+	protected.HandleFunc("/reactions/{mediaType}/{mediaId}", reactionsHandler.RemoveReaction).Methods("DELETE")
+	protected.HandleFunc("/reactions/my", reactionsHandler.GetMyReactions).Methods("GET")
 
 	// CORS и другие middleware
 	corsHandler := handlers.CORS(

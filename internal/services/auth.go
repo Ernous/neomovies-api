@@ -16,14 +16,16 @@ import (
 )
 
 type AuthService struct {
-	db        *mongo.Database
-	jwtSecret string
+	db           *mongo.Database
+	jwtSecret    string
+	emailService *EmailService
 }
 
-func NewAuthService(db *mongo.Database, jwtSecret string) *AuthService {
+func NewAuthService(db *mongo.Database, jwtSecret string, emailService *EmailService) *AuthService {
 	return &AuthService{
-		db:        db,
-		jwtSecret: jwtSecret,
+		db:           db,
+		jwtSecret:    jwtSecret,
+		emailService: emailService,
 	}
 }
 
@@ -63,6 +65,11 @@ func (s *AuthService) Register(req models.RegisterRequest) (*models.AuthResponse
 	token, err := s.generateJWT(user.ID.Hex())
 	if err != nil {
 		return nil, err
+	}
+
+	// Отправляем welcome email асинхронно
+	if s.emailService != nil {
+		go s.emailService.SendWelcomeEmail(user.Email, user.Name)
 	}
 
 	return &models.AuthResponse{
