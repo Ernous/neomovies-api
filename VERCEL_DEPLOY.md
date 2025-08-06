@@ -40,7 +40,7 @@
 /
 ├── api/
 │   └── index.go          # Основная Vercel функция
-├── internal/             # Внутренние пакеты
+├── pkg/                  # Пакеты приложения
 │   ├── config/
 │   ├── database/
 │   ├── handlers/
