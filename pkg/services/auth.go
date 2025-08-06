@@ -94,19 +94,24 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 	var user models.User
 	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
-		return nil, errors.New("invalid email or password")
+		fmt.Printf("Login error: user not found for email %s\n", req.Email)
+		return nil, errors.New("User not found")
+	}
+
+	// Проверяем верификацию email
+	if !user.Verified {
+		fmt.Printf("Login error: email not verified for %s\n", req.Email)
+		return nil, errors.New("Account not activated. Please verify your email.")
 	}
 
 	// Проверяем пароль
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return nil, errors.New("invalid email or password")
+		fmt.Printf("Login error: invalid password for email %s\n", req.Email)
+		return nil, errors.New("Invalid password")
 	}
 
-	// Проверяем верификацию email
-	if !user.Verified {
-		return nil, errors.New("email not verified. Check your email for verification code.")
-	}
+	fmt.Printf("Login successful for user %s\n", req.Email)
 
 	// Генерируем JWT токен
 	token, err := s.generateJWT(user.ID.Hex())
