@@ -91,98 +91,23 @@ func (s *AuthService) Register(req models.RegisterRequest) (map[string]interface
 func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, error) {
 	collection := s.db.Collection("users")
 
-	fmt.Printf("Attempting to find user with email: %s\n", req.Email)
-	
-	// Сначала попробуем найти пользователя без декодирования в структуру
-	var rawUser bson.M
-	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&rawUser)
+	// Находим пользователя по email (точно как в JavaScript)
+	var user models.User
+	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
-		fmt.Printf("Login error: user not found for email %s, error: %v\n", req.Email, err)
-		
-		// Попробуем найти всех пользователей с похожим email для диагностики
-		cursor, err := collection.Find(context.Background(), bson.M{})
-		if err == nil {
-			defer cursor.Close(context.Background())
-			var allUsers []bson.M
-			if err := cursor.All(context.Background(), &allUsers); err == nil {
-				fmt.Printf("All users in database: %d users\n", len(allUsers))
-				for i, u := range allUsers {
-					if i < 5 { // Показываем только первые 5 пользователей
-						fmt.Printf("User %d: %v\n", i+1, u)
-					}
-				}
-			}
-		}
-		
 		return nil, errors.New("User not found")
 	}
-	
-	fmt.Printf("Raw user found: %v\n", rawUser)
-	
-	// Создаем пользователя вручную из raw данных, чтобы избежать проблем с отсутствующими полями
-	user := models.User{
-		Email:    rawUser["email"].(string),
-		Password: rawUser["password"].(string),
-		Name:     rawUser["name"].(string),
-		Verified: rawUser["verified"].(bool),
-	}
-	
-	// Обрабатываем ID
-	if id, ok := rawUser["_id"].(primitive.ObjectID); ok {
-		user.ID = id
-	}
-	
-	// Обрабатываем опциональные поля
-	if favorites, ok := rawUser["favorites"].(primitive.A); ok {
-		user.Favorites = make([]string, len(favorites))
-		for i, fav := range favorites {
-			user.Favorites[i] = fav.(string)
-		}
-	} else {
-		user.Favorites = []string{}
-	}
-	
-	if avatar, ok := rawUser["avatar"].(string); ok {
-		user.Avatar = avatar
-	}
-	
-	if isAdmin, ok := rawUser["isAdmin"].(bool); ok {
-		user.IsAdmin = isAdmin
-	}
-	
-	if adminVerified, ok := rawUser["adminVerified"].(bool); ok {
-		user.AdminVerified = adminVerified
-	}
-	
-	// Обрабатываем даты
-	if createdAt, ok := rawUser["createdAt"].(primitive.DateTime); ok {
-		user.CreatedAt = createdAt.Time()
-	} else {
-		user.CreatedAt = time.Now() // fallback
-	}
-	
-	if updatedAt, ok := rawUser["updatedAt"].(primitive.DateTime); ok {
-		user.UpdatedAt = updatedAt.Time()
-	} else {
-		user.UpdatedAt = user.CreatedAt // fallback to createdAt
-	}
-	
-	fmt.Printf("User found: ID=%s, Email=%s, Verified=%v\n", user.ID.Hex(), user.Email, user.Verified)
 
-	// Проверяем верификацию email
+	// Проверяем верификацию email (точно как в JavaScript)
 	if !user.Verified {
-		fmt.Printf("Login error: email not verified for %s\n", req.Email)
 		return nil, errors.New("Account not activated. Please verify your email.")
 	}
 
-	// Проверяем пароль
+	// Проверяем пароль (точно как в JavaScript)
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		fmt.Printf("Login error: invalid password for email %s\n", req.Email)
 		return nil, errors.New("Invalid password")
 	}
-
-	fmt.Printf("Login successful for user %s\n", req.Email)
 
 	// Генерируем JWT токен
 	token, err := s.generateJWT(user.ID.Hex())
@@ -204,59 +129,10 @@ func (s *AuthService) GetUserByID(userID string) (*models.User, error) {
 		return nil, err
 	}
 
-	// Сначала получаем raw данные
-	var rawUser bson.M
-	err = collection.FindOne(context.Background(), bson.M{"_id": objectID}).Decode(&rawUser)
+	var user models.User
+	err = collection.FindOne(context.Background(), bson.M{"_id": objectID}).Decode(&user)
 	if err != nil {
 		return nil, err
-	}
-
-	// Создаем пользователя вручную из raw данных
-	user := models.User{
-		Email:    rawUser["email"].(string),
-		Password: rawUser["password"].(string),
-		Name:     rawUser["name"].(string),
-		Verified: rawUser["verified"].(bool),
-	}
-	
-	// Обрабатываем ID
-	if id, ok := rawUser["_id"].(primitive.ObjectID); ok {
-		user.ID = id
-	}
-	
-	// Обрабатываем опциональные поля
-	if favorites, ok := rawUser["favorites"].(primitive.A); ok {
-		user.Favorites = make([]string, len(favorites))
-		for i, fav := range favorites {
-			user.Favorites[i] = fav.(string)
-		}
-	} else {
-		user.Favorites = []string{}
-	}
-	
-	if avatar, ok := rawUser["avatar"].(string); ok {
-		user.Avatar = avatar
-	}
-	
-	if isAdmin, ok := rawUser["isAdmin"].(bool); ok {
-		user.IsAdmin = isAdmin
-	}
-	
-	if adminVerified, ok := rawUser["adminVerified"].(bool); ok {
-		user.AdminVerified = adminVerified
-	}
-	
-	// Обрабатываем даты
-	if createdAt, ok := rawUser["createdAt"].(primitive.DateTime); ok {
-		user.CreatedAt = createdAt.Time()
-	} else {
-		user.CreatedAt = time.Now() // fallback
-	}
-	
-	if updatedAt, ok := rawUser["updatedAt"].(primitive.DateTime); ok {
-		user.UpdatedAt = updatedAt.Time()
-	} else {
-		user.UpdatedAt = user.CreatedAt // fallback to createdAt
 	}
 
 	return &user, nil
@@ -300,16 +176,13 @@ func (s *AuthService) generateJWT(userID string) (string, error) {
 func (s *AuthService) VerifyEmail(req models.VerifyEmailRequest) (map[string]interface{}, error) {
 	collection := s.db.Collection("users")
 
-	// Получаем raw данные пользователя
-	var rawUser bson.M
-	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&rawUser)
+	var user models.User
+	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Проверяем верификацию
-	verified, _ := rawUser["verified"].(bool)
-	if verified {
+	if user.Verified {
 		return map[string]interface{}{
 			"success": true,
 			"message": "Email already verified",
@@ -317,10 +190,7 @@ func (s *AuthService) VerifyEmail(req models.VerifyEmailRequest) (map[string]int
 	}
 
 	// Проверяем код и срок действия
-	verificationCode, _ := rawUser["verificationCode"].(string)
-	verificationExpires, _ := rawUser["verificationExpires"].(primitive.DateTime)
-	
-	if verificationCode != req.Code || verificationExpires.Time().Before(time.Now()) {
+	if user.VerificationCode != req.Code || user.VerificationExpires.Before(time.Now()) {
 		return nil, errors.New("invalid or expired verification code")
 	}
 
@@ -350,21 +220,15 @@ func (s *AuthService) VerifyEmail(req models.VerifyEmailRequest) (map[string]int
 func (s *AuthService) ResendVerificationCode(req models.ResendCodeRequest) (map[string]interface{}, error) {
 	collection := s.db.Collection("users")
 
-	// Получаем raw данные пользователя
-	var rawUser bson.M
-	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&rawUser)
+	var user models.User
+	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Проверяем верификацию
-	verified, _ := rawUser["verified"].(bool)
-	if verified {
+	if user.Verified {
 		return nil, errors.New("email already verified")
 	}
-
-	// Получаем email для отправки
-	email, _ := rawUser["email"].(string)
 
 	// Генерируем новый код
 	code := s.generateVerificationCode()
@@ -387,7 +251,7 @@ func (s *AuthService) ResendVerificationCode(req models.ResendCodeRequest) (map[
 
 	// Отправляем новый код на email
 	if s.emailService != nil {
-		go s.emailService.SendVerificationEmail(email, code)
+		go s.emailService.SendVerificationEmail(user.Email, code)
 	}
 
 	return map[string]interface{}{
