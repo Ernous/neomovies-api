@@ -54,39 +54,44 @@ func (h *DocsHandler) serveDocs(w http.ResponseWriter, r *http.Request) {
         body {
             margin: 0;
             padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
     </style>
 </head>
 <body>
-    <script
-        id="api-reference"
-        data-url="{{.BaseURL}}/openapi.json"
-        data-configuration='{
-            "theme": "saturn",
-            "layout": "modern",
-            "defaultHttpClient": {
-                "targetKey": "javascript",
-                "clientKey": "fetch"
-            },
-            "authentication": {
-                "securitySchemes": {
-                    "bearerAuth": {
-                        "type": "http",
-                        "scheme": "bearer",
-                        "bearerFormat": "JWT"
+    <div id="api-reference"></div>
+    <script type="module">
+        import { createApiReference } from 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@latest/dist/browser/standalone.js'
+        
+        createApiReference({
+            element: '#api-reference',
+            configuration: {
+                theme: 'saturn',
+                layout: 'modern',
+                defaultHttpClient: {
+                    targetKey: 'javascript',
+                    clientKey: 'fetch'
+                },
+                authentication: {
+                    securitySchemes: {
+                        bearerAuth: {
+                            type: 'http',
+                            scheme: 'bearer',
+                            bearerFormat: 'JWT'
+                        }
                     }
+                },
+                spec: {
+                    url: '{{.BaseURL}}/openapi.json'
+                },
+                metadata: {
+                    title: 'Neo Movies API',
+                    description: 'Современный API для поиска фильмов и сериалов с поддержкой авторизации',
+                    favicon: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference/dist/browser/favicon.ico'
                 }
-            },
-            "spec": {
-                "url": "{{.BaseURL}}/openapi.json"
-            },
-            "metadata": {
-                "title": "Neo Movies API",
-                "description": "Современный API для поиска фильмов и сериалов с поддержкой авторизации",
-                "favicon": "https://cdn.jsdelivr.net/npm/@scalar/api-reference/dist/browser/favicon.ico"
             }
-        }'></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@latest"></script>
+        })
+    </script>
 </body>
 </html>`
 
@@ -216,6 +221,14 @@ func getOpenAPISpec() *OpenAPISpec {
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
 							"description": "Список категорий",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "array",
+										"items": map[string]interface{}{"$ref": "#/components/schemas/Category"},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -328,6 +341,13 @@ func getOpenAPISpec() *OpenAPISpec {
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
 							"description": "Количество реакций",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/ReactionCounts",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -890,6 +910,13 @@ func getOpenAPISpec() *OpenAPISpec {
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
 							"description": "Результаты поиска сериалов",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/TVSearchResponse",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1012,6 +1039,13 @@ func getOpenAPISpec() *OpenAPISpec {
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
 							"description": "Информация о сериале",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/TVSeries",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1187,6 +1221,80 @@ func getOpenAPISpec() *OpenAPISpec {
 						},
 						"total_pages": map[string]string{"type": "integer"},
 						"total_results": map[string]string{"type": "integer"},
+					},
+				},
+				"TVSeries": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"id": map[string]string{"type": "integer"},
+						"name": map[string]string{"type": "string"},
+						"original_name": map[string]string{"type": "string"},
+						"overview": map[string]string{"type": "string"},
+						"poster_path": map[string]string{"type": "string"},
+						"backdrop_path": map[string]string{"type": "string"},
+						"first_air_date": map[string]string{"type": "string"},
+						"vote_average": map[string]string{"type": "number"},
+						"vote_count": map[string]string{"type": "integer"},
+						"popularity": map[string]string{"type": "number"},
+						"original_language": map[string]string{"type": "string"},
+						"number_of_seasons": map[string]string{"type": "integer"},
+						"number_of_episodes": map[string]string{"type": "integer"},
+						"status": map[string]string{"type": "string"},
+					},
+				},
+				"TVSearchResponse": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"page": map[string]string{"type": "integer"},
+						"results": map[string]interface{}{
+							"type": "array",
+							"items": map[string]interface{}{"$ref": "#/components/schemas/TVSeries"},
+						},
+						"total_pages": map[string]string{"type": "integer"},
+						"total_results": map[string]string{"type": "integer"},
+					},
+				},
+				"Category": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"id": map[string]string{"type": "integer"},
+						"name": map[string]string{"type": "string"},
+						"description": map[string]string{"type": "string"},
+					},
+				},
+				"Player": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"url": map[string]string{"type": "string"},
+						"title": map[string]string{"type": "string"},
+						"quality": map[string]string{"type": "string"},
+						"type": map[string]string{"type": "string"},
+					},
+				},
+				"Torrent": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"title": map[string]string{"type": "string"},
+						"size": map[string]string{"type": "string"},
+						"seeds": map[string]string{"type": "integer"},
+						"peers": map[string]string{"type": "integer"},
+						"magnet": map[string]string{"type": "string"},
+						"hash": map[string]string{"type": "string"},
+					},
+				},
+				"Reaction": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"type": map[string]string{"type": "string"},
+						"count": map[string]string{"type": "integer"},
+					},
+				},
+				"ReactionCounts": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"like": map[string]string{"type": "integer"},
+						"dislike": map[string]string{"type": "integer"},
+						"love": map[string]string{"type": "integer"},
 					},
 				},
 			},
