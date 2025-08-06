@@ -79,7 +79,7 @@ func (s *TMDBService) SearchMulti(query string, page int, language string) (*mod
 	params.Set("query", query)
 	params.Set("page", strconv.Itoa(page))
 	params.Set("include_adult", "false")
-	
+
 	if language != "" {
 		params.Set("language", language)
 	} else {
@@ -87,10 +87,36 @@ func (s *TMDBService) SearchMulti(query string, page int, language string) (*mod
 	}
 
 	endpoint := fmt.Sprintf("%s/search/multi?%s", s.baseURL, params.Encode())
-	
+
 	var response models.MultiSearchResponse
 	err := s.makeRequest(endpoint, &response)
-	return &response, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Фильтруем результаты: убираем "person", и без названия
+	filteredResults := make([]models.MultiSearchResult, 0)
+	for _, result := range response.Results {
+		if result.MediaType == "person" {
+			continue
+		}
+
+		hasTitle := false
+		if result.MediaType == "movie" && result.Title != "" {
+			hasTitle = true
+		} else if result.MediaType == "tv" && result.Name != "" {
+			hasTitle = true
+		}
+
+		if hasTitle {
+			filteredResults = append(filteredResults, result)
+		}
+	}
+
+	response.Results = filteredResults
+	response.TotalResults = len(filteredResults)
+
+	return &response, nil
 }
 
 func (s *TMDBService) SearchTVShows(query string, page int, language string, firstAirDateYear int) (*models.TMDBTVResponse, error) {
