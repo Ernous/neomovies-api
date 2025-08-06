@@ -49,8 +49,9 @@ func getMongoURI() string {
 		}
 	}
 	
-	log.Printf("DEBUG: No MongoDB URI found, using default localhost")
-	return "mongodb://localhost:27017/neomovies"
+	// Для тестирования используем реальный URL
+	log.Printf("DEBUG: Using test MongoDB URI")
+	return "mongodb+srv://neomoviesmail:Vfhreif1@neo-movies.nz1e2.mongodb.net/database"
 }
 
 func getEnv(key, defaultValue string) string {
