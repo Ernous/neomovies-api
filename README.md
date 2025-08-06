@@ -239,13 +239,64 @@ curl "https://api.neomovies.ru/api/v1/torrents/search/tt0111161?type=movie&quali
 - **JWT авторизация** прямо в интерфейсе
 - **Примеры запросов** для всех эндпоинтов
 
+## ☁️ Деплой на Vercel
+
+### Быстрый деплой
+
+1. **Подключите репозиторий к Vercel**
+2. **Настройте Environment Variables:**
+
+```bash
+# Обязательные переменные
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+TMDB_ACCESS_TOKEN=your_tmdb_token
+JWT_SECRET=your_secure_jwt_secret
+
+# Опциональные
+GMAIL_USER=your-email@gmail.com
+GMAIL_APP_PASSWORD=your_gmail_app_password
+LUMEX_URL=https://lumex.example.com
+ALLOHA_TOKEN=your_alloha_token
+```
+
+3. **Деплой автоматически запустится!**
+
+### Отладка в Vercel
+
+Проверьте health check для диагностики:
+```bash
+curl https://your-app.vercel.app/api/v1/health
+```
+
+Ответ покажет статус всех переменных окружения:
+```json
+{
+  "success": true,
+  "message": "API is running",
+  "data": {
+    "version": "1.0.0",
+    "environment_debug": {
+      "MONGO_URI_set": true,
+      "TMDB_ACCESS_TOKEN_set": true,
+      "JWT_SECRET_set": true
+    }
+  }
+}
+```
+
+### Альтернативные названия переменных
+
+API автоматически проверяет различные названия:
+- `MONGO_URI` / `MONGODB_URI` / `DATABASE_URL` / `MONGO_URL`
+- Используйте любое удобное название
+
 ## 🏗 Архитектура
 
 ```
 ├── main.go                 # Точка входа приложения
 ├── api/
 │   └── index.go           # Vercel serverless handler
-├── internal/
+├── pkg/                   # Публичные пакеты (бывший internal/)
 │   ├── config/           # Конфигурация
 │   ├── database/         # Подключение к MongoDB
 │   ├── middleware/       # JWT, CORS, логирование
