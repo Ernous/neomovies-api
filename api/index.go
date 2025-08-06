@@ -3,10 +3,13 @@ package handler
 import (
 	"log"
 	"net/http"
+	"os"
+	"sync"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"neomovies-api/pkg/config"
 	"neomovies-api/pkg/database"
@@ -15,31 +18,65 @@ import (
 	"neomovies-api/pkg/services"
 )
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+var (
+	globalDB   *mongo.Database
+	globalCfg  *config.Config
+	initOnce   sync.Once
+	initError  error
+)
+
+func initializeApp() {
 	// Загружаем переменные окружения (в Vercel они уже установлены)
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: .env file not found (normal for Vercel)")
 	}
 
+	// Логируем важные переменные окружения для отладки
+	log.Printf("DEBUG: Environment variables check:")
+	envVars := []string{"MONGO_URI", "MONGODB_URI", "DATABASE_URL", "MONGO_URL", "TMDB_ACCESS_TOKEN", "JWT_SECRET"}
+	for _, envVar := range envVars {
+		value := os.Getenv(envVar)
+		if value != "" {
+			log.Printf("DEBUG: %s is set (length: %d)", envVar, len(value))
+		} else {
+			log.Printf("DEBUG: %s is NOT set", envVar)
+		}
+	}
+
 	// Инициализируем конфигурацию
-	cfg := config.New()
+	globalCfg = config.New()
 
 	// Подключаемся к базе данных
-	db, err := database.Connect(cfg.MongoURI)
+	var err error
+	globalDB, err = database.Connect(globalCfg.MongoURI)
 	if err != nil {
 		log.Printf("Failed to connect to database: %v", err)
-		http.Error(w, "Database connection failed", http.StatusInternalServerError)
+		initError = err
+		return
+	}
+
+	log.Println("Successfully connected to database")
+}
+
+func Handler(w http.ResponseWriter, r *http.Request) {
+	// Инициализируем приложение один раз
+	initOnce.Do(initializeApp)
+
+	// Проверяем, была ли ошибка инициализации
+	if initError != nil {
+		log.Printf("Initialization error: %v", initError)
+		http.Error(w, "Application initialization failed: "+initError.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Инициализируем сервисы
-	tmdbService := services.NewTMDBService(cfg.TMDBAccessToken)
-	emailService := services.NewEmailService(cfg)
-	authService := services.NewAuthService(db, cfg.JWTSecret, emailService)
-	movieService := services.NewMovieService(db, tmdbService)
-	tvService := services.NewTVService(db, tmdbService)
+	tmdbService := services.NewTMDBService(globalCfg.TMDBAccessToken)
+	emailService := services.NewEmailService(globalCfg)
+	authService := services.NewAuthService(globalDB, globalCfg.JWTSecret, emailService)
+	movieService := services.NewMovieService(globalDB, tmdbService)
+	tvService := services.NewTVService(globalDB, tmdbService)
 	torrentService := services.NewTorrentService()
-	reactionsService := services.NewReactionsService(db)
+	reactionsService := services.NewReactionsService(globalDB)
 
 	// Создаем обработчики
 	authHandler := handlersPkg.NewAuthHandler(authService)
@@ -48,7 +85,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	docsHandler := handlersPkg.NewDocsHandler()
 	searchHandler := handlersPkg.NewSearchHandler(tmdbService)
 	categoriesHandler := handlersPkg.NewCategoriesHandler(tmdbService)
-	playersHandler := handlersPkg.NewPlayersHandler(cfg)
+	playersHandler := handlersPkg.NewPlayersHandler(globalCfg)
 	torrentsHandler := handlersPkg.NewTorrentsHandler(torrentService, tmdbService)
 	reactionsHandler := handlersPkg.NewReactionsHandler(reactionsService)
 	imagesHandler := handlersPkg.NewImagesHandler()
@@ -113,7 +150,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	// Приватные маршруты (требуют авторизации)
 	protected := api.PathPrefix("").Subrouter()
-	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
+	protected.Use(middleware.JWTAuth(globalCfg.JWTSecret))
 
 	// Избранное
 	protected.HandleFunc("/favorites", movieHandler.GetFavorites).Methods("GET")
