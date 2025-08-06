@@ -10,86 +10,276 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"neomovies-api/internal/models"
 )
 
 type TorrentService struct {
-	client *http.Client
+	client  *http.Client
+	baseURL string
+	apiKey  string
 }
 
 func NewTorrentService() *TorrentService {
 	return &TorrentService{
-		client: &http.Client{},
+		client:  &http.Client{Timeout: 8 * time.Second},
+		baseURL: "http://redapi.cfhttp.top",
+		apiKey:  "", // Может быть установлен через переменные окружения
 	}
 }
 
-type TorrentSearchOptions struct {
-	Season       *int
-	Quality      []string
-	MinQuality   string
-	MaxQuality   string
-	ExcludeQualities []string
-	HDR          *bool
-	HEVC         *bool
-	SortBy       string
-	SortOrder    string
-	GroupByQuality bool
-	GroupBySeason  bool
-}
-
-func (s *TorrentService) SearchTorrentsByIMDbID(tmdbService *TMDBService, imdbID, mediaType string, options *TorrentSearchOptions) (*models.TorrentSearchResponse, error) {
-	// Получаем информацию о фильме/сериале из TMDB
-	title, year, err := s.getTitleFromTMDB(tmdbService, imdbID, mediaType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get title from TMDB: %w", err)
+// SearchTorrents - основной метод поиска торрентов через RedAPI
+func (s *TorrentService) SearchTorrents(params map[string]string) (*models.TorrentSearchResponse, error) {
+	searchParams := url.Values{}
+	
+	// Добавляем все параметры поиска
+	for key, value := range params {
+		if value != "" {
+			if key == "category" {
+				searchParams.Add("category[]", value)
+			} else {
+				searchParams.Add(key, value)
+			}
+		}
+	}
+	
+	if s.apiKey != "" {
+		searchParams.Add("apikey", s.apiKey)
 	}
 
-	// Поиск торрентов на bitru.org
-	torrents, err := s.searchOnBitru(title, year, mediaType, options)
+	searchURL := fmt.Sprintf("%s/api/v2.0/indexers/all/results?%s", s.baseURL, searchParams.Encode())
+	
+	resp, err := s.client.Get(searchURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search torrents: %w", err)
-	}
-
-	// Фильтрация и сортировка
-	filteredTorrents := s.filterTorrents(torrents, options)
-	sortedTorrents := s.sortTorrents(filteredTorrents, options.SortBy, options.SortOrder)
-
-	return &models.TorrentSearchResponse{
-		Query:   fmt.Sprintf("%s (%s)", title, year),
-		Results: sortedTorrents,
-		Total:   len(sortedTorrents),
-	}, nil
-}
-
-func (s *TorrentService) getTitleFromTMDB(tmdbService *TMDBService, imdbID, mediaType string) (string, string, error) {
-	// Используем find API для поиска по IMDB ID
-	endpoint := fmt.Sprintf("https://api.themoviedb.org/3/find/%s", imdbID)
-	
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return "", "", err
-	}
-
-	// Добавляем параметры
-	params := url.Values{}
-	params.Set("external_source", "imdb_id")
-	params.Set("language", "ru-RU")
-	req.URL.RawQuery = params.Encode()
-
-	// Добавляем авторизацию
-	req.Header.Set("Authorization", "Bearer "+tmdbService.accessToken)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return "", "", err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", "", err
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var redAPIResponse models.RedAPIResponse
+	if err := json.Unmarshal(body, &redAPIResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	results := s.parseRedAPIResults(redAPIResponse)
+	
+	return &models.TorrentSearchResponse{
+		Query:   params["query"],
+		Results: results,
+		Total:   len(results),
+	}, nil
+}
+
+// parseRedAPIResults преобразует результаты RedAPI в наш формат
+func (s *TorrentService) parseRedAPIResults(data models.RedAPIResponse) []models.TorrentResult {
+	var results []models.TorrentResult
+	
+	for _, torrent := range data.Results {
+		// Обрабатываем размер - может быть строкой или числом
+		var sizeStr string
+		switch v := torrent.Size.(type) {
+		case string:
+			sizeStr = v
+		case float64:
+			sizeStr = fmt.Sprintf("%.0f", v)
+		case int:
+			sizeStr = fmt.Sprintf("%d", v)
+		default:
+			sizeStr = ""
+		}
+		
+		result := models.TorrentResult{
+			Title:       torrent.Title,
+			Tracker:     torrent.Tracker,
+			Size:        sizeStr,
+			Seeders:     torrent.Seeders,
+			Peers:       torrent.Peers,
+			MagnetLink:  torrent.MagnetUri,
+			PublishDate: torrent.PublishDate,
+			Category:    torrent.CategoryDesc,
+			Details:     torrent.Details,
+			Source:      "RedAPI",
+		}
+		
+		// Добавляем информацию из Info если она есть
+		if torrent.Info != nil {
+			// Обрабатываем качество - может быть строкой или числом
+			switch v := torrent.Info.Quality.(type) {
+			case string:
+				result.Quality = v
+			case float64:
+				result.Quality = fmt.Sprintf("%.0fp", v)
+			case int:
+				result.Quality = fmt.Sprintf("%dp", v)
+			}
+			
+			result.Voice = torrent.Info.Voices
+			result.Types = torrent.Info.Types
+			result.Seasons = torrent.Info.Seasons
+		}
+		
+		// Если качество не определено через Info, пытаемся извлечь из названия
+		if result.Quality == "" {
+			result.Quality = s.ExtractQuality(result.Title)
+		}
+		
+		results = append(results, result)
+	}
+	
+	return results
+}
+
+// SearchTorrentsByIMDbID - поиск по IMDB ID с поддержкой всех функций
+func (s *TorrentService) SearchTorrentsByIMDbID(tmdbService *TMDBService, imdbID, mediaType string, options *models.TorrentSearchOptions) (*models.TorrentSearchResponse, error) {
+	// Получаем информацию о фильме/сериале из TMDB
+	title, originalTitle, year, err := s.getTitleFromTMDB(tmdbService, imdbID, mediaType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get title from TMDB: %w", err)
+	}
+
+	// Формируем параметры поиска
+	params := make(map[string]string)
+	params["imdb"] = imdbID
+	params["title"] = title
+	params["title_original"] = originalTitle
+	params["year"] = year
+	
+	// Устанавливаем тип контента и категорию
+	switch mediaType {
+	case "movie":
+		params["is_serial"] = "1"
+		params["category"] = "2000"
+	case "tv", "series":
+		params["is_serial"] = "2"
+		params["category"] = "5000"
+	case "anime":
+		params["is_serial"] = "5"
+		params["category"] = "5070"
+	default:
+		params["is_serial"] = "1"
+		params["category"] = "2000"
+	}
+	
+	// Добавляем сезон если указан
+	if options != nil && options.Season != nil {
+		params["season"] = strconv.Itoa(*options.Season)
+	}
+
+	// Выполняем поиск
+	response, err := s.SearchTorrents(params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Применяем фильтрацию
+	if options != nil {
+		response.Results = s.FilterByContentType(response.Results, options.ContentType)
+		response.Results = s.FilterTorrents(response.Results, options)
+		response.Results = s.sortTorrents(response.Results, options.SortBy, options.SortOrder)
+		response.Total = len(response.Results)
+	}
+
+	return response, nil
+}
+
+// SearchMovies - поиск фильмов с дополнительной фильтрацией
+func (s *TorrentService) SearchMovies(title, originalTitle, year string) (*models.TorrentSearchResponse, error) {
+	params := map[string]string{
+		"title":          title,
+		"title_original": originalTitle,
+		"year":           year,
+		"is_serial":      "1",
+		"category":       "2000",
+	}
+	
+	response, err := s.SearchTorrents(params)
+	if err != nil {
+		return nil, err
+	}
+	
+	response.Results = s.FilterByContentType(response.Results, "movie")
+	response.Total = len(response.Results)
+	
+	return response, nil
+}
+
+// SearchSeries - поиск сериалов с поддержкой сезонов
+func (s *TorrentService) SearchSeries(title, originalTitle, year string, season *int) (*models.TorrentSearchResponse, error) {
+	params := map[string]string{
+		"title":          title,
+		"title_original": originalTitle,
+		"year":           year,
+		"is_serial":      "2",
+		"category":       "5000",
+	}
+	
+	if season != nil {
+		params["season"] = strconv.Itoa(*season)
+	}
+	
+	response, err := s.SearchTorrents(params)
+	if err != nil {
+		return nil, err
+	}
+	
+	response.Results = s.FilterByContentType(response.Results, "serial")
+	response.Total = len(response.Results)
+	
+	return response, nil
+}
+
+// SearchAnime - поиск аниме
+func (s *TorrentService) SearchAnime(title, originalTitle, year string) (*models.TorrentSearchResponse, error) {
+	params := map[string]string{
+		"title":          title,
+		"title_original": originalTitle,
+		"year":           year,
+		"is_serial":      "5",
+		"category":       "5070",
+	}
+	
+	response, err := s.SearchTorrents(params)
+	if err != nil {
+		return nil, err
+	}
+	
+	response.Results = s.FilterByContentType(response.Results, "anime")
+	response.Total = len(response.Results)
+	
+	return response, nil
+}
+
+// getTitleFromTMDB - получение информации из TMDB
+func (s *TorrentService) getTitleFromTMDB(tmdbService *TMDBService, imdbID, mediaType string) (string, string, string, error) {
+	endpoint := fmt.Sprintf("https://api.themoviedb.org/3/find/%s", imdbID)
+	
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	params := url.Values{}
+	params.Set("external_source", "imdb_id")
+	params.Set("language", "ru-RU")
+	req.URL.RawQuery = params.Encode()
+
+	req.Header.Set("Authorization", "Bearer "+tmdbService.accessToken)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return "", "", "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", "", err
 	}
 
 	var findResponse struct {
@@ -106,142 +296,87 @@ func (s *TorrentService) getTitleFromTMDB(tmdbService *TMDBService, imdbID, medi
 	}
 
 	if err := json.Unmarshal(body, &findResponse); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	if mediaType == "movie" && len(findResponse.MovieResults) > 0 {
 		movie := findResponse.MovieResults[0]
-		title := movie.OriginalTitle
-		if title == "" {
-			title = movie.Title
-		}
+		title := movie.Title
+		originalTitle := movie.OriginalTitle
 		year := ""
 		if movie.ReleaseDate != "" {
 			year = movie.ReleaseDate[:4]
 		}
-		return title, year, nil
+		return title, originalTitle, year, nil
 	}
 
 	if (mediaType == "tv" || mediaType == "series") && len(findResponse.TVResults) > 0 {
 		tv := findResponse.TVResults[0]
-		title := tv.OriginalName
-		if title == "" {
-			title = tv.Name
-		}
+		title := tv.Name
+		originalTitle := tv.OriginalName
 		year := ""
 		if tv.FirstAirDate != "" {
 			year = tv.FirstAirDate[:4]
 		}
-		return title, year, nil
+		return title, originalTitle, year, nil
 	}
 
-	return "", "", fmt.Errorf("no results found for IMDB ID: %s", imdbID)
+	return "", "", "", fmt.Errorf("no results found for IMDB ID: %s", imdbID)
 }
 
-func (s *TorrentService) searchOnBitru(title, year, mediaType string, options *TorrentSearchOptions) ([]models.TorrentResult, error) {
-	// Формируем поисковый запрос
-	searchQuery := title
-	if year != "" {
-		searchQuery += " " + year
+// FilterByContentType - фильтрация по типу контента
+func (s *TorrentService) FilterByContentType(results []models.TorrentResult, contentType string) []models.TorrentResult {
+	if contentType == "" {
+		return results
 	}
-
-	// URL для поиска на bitru.org
-	searchURL := fmt.Sprintf("https://bitru.org/search.php?search=%s", url.QueryEscape(searchQuery))
-
-	resp, err := s.client.Get(searchURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Парсим HTML и извлекаем торренты
-	torrents := s.parseHTML(string(body))
 	
-	return torrents, nil
-}
-
-func (s *TorrentService) parseHTML(html string) []models.TorrentResult {
-	var torrents []models.TorrentResult
-
-	// Простой парсинг HTML (в реальном проекте лучше использовать goquery)
-	// Ищем строки таблицы с торрентами
-	re := regexp.MustCompile(`<tr[^>]*>.*?</tr>`)
-	rows := re.FindAllString(html, -1)
-
-	for _, row := range rows {
-		torrent := s.parseTorrentRow(row)
-		if torrent.Title != "" {
-			torrents = append(torrents, torrent)
-		}
-	}
-
-	return torrents
-}
-
-func (s *TorrentService) parseTorrentRow(row string) models.TorrentResult {
-	var torrent models.TorrentResult
-
-	// Извлекаем название
-	titleRe := regexp.MustCompile(`<a[^>]*href="[^"]*"[^>]*>([^<]+)</a>`)
-	if matches := titleRe.FindStringSubmatch(row); len(matches) > 1 {
-		torrent.Title = strings.TrimSpace(matches[1])
-	}
-
-	// Извлекаем размер
-	sizeRe := regexp.MustCompile(`(\d+(?:\.\d+)?\s*[KMGTPE]?B)`)
-	if matches := sizeRe.FindStringSubmatch(row); len(matches) > 1 {
-		torrent.Size = matches[1]
-	}
-
-	// Извлекаем количество сидеров и личеров
-	seedRe := regexp.MustCompile(`class="seed[^"]*"[^>]*>(\d+)</`)
-	if matches := seedRe.FindStringSubmatch(row); len(matches) > 1 {
-		if seeders, err := strconv.Atoi(matches[1]); err == nil {
-			torrent.Seeders = seeders
-		}
-	}
-
-	leechRe := regexp.MustCompile(`class="leech[^"]*"[^>]*>(\d+)</`)
-	if matches := leechRe.FindStringSubmatch(row); len(matches) > 1 {
-		if leechers, err := strconv.Atoi(matches[1]); err == nil {
-			torrent.Leechers = leechers
-		}
-	}
-
-	// Определяем качество по названию
-	torrent.Quality = s.extractQuality(torrent.Title)
-
-	// Извлекаем magnet ссылку
-	magnetRe := regexp.MustCompile(`href="(magnet:[^"]+)"`)
-	if matches := magnetRe.FindStringSubmatch(row); len(matches) > 1 {
-		torrent.MagnetLink = matches[1]
-	}
-
-	return torrent
-}
-
-func (s *TorrentService) extractQuality(title string) string {
-	title = strings.ToUpper(title)
+	var filtered []models.TorrentResult
 	
-	qualities := []string{"2160P", "4K", "1440P", "1080P", "720P", "480P", "360P"}
-	for _, quality := range qualities {
-		if strings.Contains(title, quality) {
-			if quality == "2160P" {
-				return "4K"
+	for _, torrent := range results {
+		// Фильтрация по полю types, если оно есть
+		if len(torrent.Types) > 0 {
+			switch contentType {
+			case "movie":
+				if s.containsAny(torrent.Types, []string{"movie", "multfilm", "documovie"}) {
+					filtered = append(filtered, torrent)
+				}
+			case "serial":
+				if s.containsAny(torrent.Types, []string{"serial", "multserial", "docuserial", "tvshow"}) {
+					filtered = append(filtered, torrent)
+				}
+			case "anime":
+				if s.contains(torrent.Types, "anime") {
+					filtered = append(filtered, torrent)
+				}
 			}
-			return quality
+			continue
+		}
+
+		// Фильтрация по названию, если types недоступно
+		title := strings.ToLower(torrent.Title)
+		switch contentType {
+		case "movie":
+			if !regexp.MustCompile(`(?i)(сезон|серии|series|season|эпизод)`).MatchString(title) {
+				filtered = append(filtered, torrent)
+			}
+		case "serial":
+			if regexp.MustCompile(`(?i)(сезон|серии|series|season|эпизод)`).MatchString(title) {
+				filtered = append(filtered, torrent)
+			}
+		case "anime":
+			if torrent.Category == "TV/Anime" || regexp.MustCompile(`(?i)anime`).MatchString(title) {
+				filtered = append(filtered, torrent)
+			}
+		default:
+			filtered = append(filtered, torrent)
 		}
 	}
 	
-	return "Unknown"
+	return filtered
 }
 
-func (s *TorrentService) filterTorrents(torrents []models.TorrentResult, options *TorrentSearchOptions) []models.TorrentResult {
+// FilterTorrents - фильтрация торрентов по опциям
+func (s *TorrentService) FilterTorrents(torrents []models.TorrentResult, options *models.TorrentSearchOptions) []models.TorrentResult {
 	if options == nil {
 		return torrents
 	}
@@ -289,7 +424,7 @@ func (s *TorrentService) filterTorrents(torrents []models.TorrentResult, options
 
 		// Фильтрация по HDR
 		if options.HDR != nil {
-			hasHDR := strings.Contains(strings.ToUpper(torrent.Title), "HDR")
+			hasHDR := regexp.MustCompile(`(?i)(hdr|dolby.vision|dv)`).MatchString(torrent.Title)
 			if *options.HDR != hasHDR {
 				continue
 			}
@@ -297,9 +432,15 @@ func (s *TorrentService) filterTorrents(torrents []models.TorrentResult, options
 
 		// Фильтрация по HEVC
 		if options.HEVC != nil {
-			hasHEVC := strings.Contains(strings.ToUpper(torrent.Title), "HEVC") || 
-					  strings.Contains(strings.ToUpper(torrent.Title), "H.265")
+			hasHEVC := regexp.MustCompile(`(?i)(hevc|h\.265|x265)`).MatchString(torrent.Title)
 			if *options.HEVC != hasHEVC {
+				continue
+			}
+		}
+
+		// Фильтрация по сезону (дополнительная на клиенте)
+		if options.Season != nil {
+			if !s.matchesSeason(torrent, *options.Season) {
 				continue
 			}
 		}
@@ -310,28 +451,62 @@ func (s *TorrentService) filterTorrents(torrents []models.TorrentResult, options
 	return filtered
 }
 
-func (s *TorrentService) qualityMeetsMinimum(quality, minQuality string) bool {
-	qualityOrder := map[string]int{
-		"360P": 1, "480P": 2, "720P": 3, "1080P": 4, "1440P": 5, "4K": 6, "2160P": 6,
+// matchesSeason - проверка соответствия сезону
+func (s *TorrentService) matchesSeason(torrent models.TorrentResult, season int) bool {
+	// Проверяем в поле seasons
+	for _, s := range torrent.Seasons {
+		if s == season {
+			return true
+		}
 	}
 	
-	currentLevel := qualityOrder[strings.ToUpper(quality)]
-	minLevel := qualityOrder[strings.ToUpper(minQuality)]
-	
-	return currentLevel >= minLevel
-}
-
-func (s *TorrentService) qualityMeetsMaximum(quality, maxQuality string) bool {
-	qualityOrder := map[string]int{
-		"360P": 1, "480P": 2, "720P": 3, "1080P": 4, "1440P": 5, "4K": 6, "2160P": 6,
+	// Проверяем в названии
+	seasonRegex := regexp.MustCompile(`(?i)(?:s|сезон)[\s:]*(\d+)|(\d+)\s*сезон`)
+	matches := seasonRegex.FindAllStringSubmatch(torrent.Title, -1)
+	for _, match := range matches {
+		seasonNumber := 0
+		if match[1] != "" {
+			seasonNumber, _ = strconv.Atoi(match[1])
+		} else if match[2] != "" {
+			seasonNumber, _ = strconv.Atoi(match[2])
+		}
+		if seasonNumber == season {
+			return true
+		}
 	}
 	
-	currentLevel := qualityOrder[strings.ToUpper(quality)]
-	maxLevel := qualityOrder[strings.ToUpper(maxQuality)]
-	
-	return currentLevel <= maxLevel
+	return false
 }
 
+// ExtractQuality - извлечение качества из названия
+func (s *TorrentService) ExtractQuality(title string) string {
+	title = strings.ToUpper(title)
+	
+	qualityPatterns := []struct {
+		pattern string
+		quality string
+	}{
+		{`2160P|4K`, "2160p"},
+		{`1440P`, "1440p"},
+		{`1080P`, "1080p"},
+		{`720P`, "720p"},
+		{`480P`, "480p"},
+		{`360P`, "360p"},
+	}
+	
+	for _, qp := range qualityPatterns {
+		if matched, _ := regexp.MatchString(qp.pattern, title); matched {
+			if qp.quality == "2160p" {
+				return "4K"
+			}
+			return qp.quality
+		}
+	}
+	
+	return "Unknown"
+}
+
+// sortTorrents - сортировка результатов
 func (s *TorrentService) sortTorrents(torrents []models.TorrentResult, sortBy, sortOrder string) []models.TorrentResult {
 	if sortBy == "" {
 		sortBy = "seeders"
@@ -349,7 +524,7 @@ func (s *TorrentService) sortTorrents(torrents []models.TorrentResult, sortBy, s
 		case "size":
 			less = s.compareSizes(torrents[i].Size, torrents[j].Size)
 		case "date":
-			less = torrents[i].AddedDate < torrents[j].AddedDate
+			less = torrents[i].PublishDate < torrents[j].PublishDate
 		default:
 			less = torrents[i].Seeders < torrents[j].Seeders
 		}
@@ -363,7 +538,175 @@ func (s *TorrentService) sortTorrents(torrents []models.TorrentResult, sortBy, s
 	return torrents
 }
 
+// GroupByQuality - группировка по качеству
+func (s *TorrentService) GroupByQuality(results []models.TorrentResult) map[string][]models.TorrentResult {
+	groups := make(map[string][]models.TorrentResult)
+	
+	for _, torrent := range results {
+		quality := torrent.Quality
+		if quality == "" {
+			quality = "unknown"
+		}
+		
+		// Объединяем 4K и 2160p в одну группу
+		if quality == "2160p" {
+			quality = "4K"
+		}
+		
+		groups[quality] = append(groups[quality], torrent)
+	}
+	
+	// Сортируем торренты внутри каждой группы по сидам
+	for quality := range groups {
+		sort.Slice(groups[quality], func(i, j int) bool {
+			return groups[quality][i].Seeders > groups[quality][j].Seeders
+		})
+	}
+	
+	return groups
+}
+
+// GroupBySeason - группировка по сезонам
+func (s *TorrentService) GroupBySeason(results []models.TorrentResult) map[string][]models.TorrentResult {
+	groups := make(map[string][]models.TorrentResult)
+	
+	for _, torrent := range results {
+		seasons := make(map[int]bool)
+		
+		// Извлекаем сезоны из поля seasons
+		for _, season := range torrent.Seasons {
+			seasons[season] = true
+		}
+		
+		// Извлекаем сезоны из названия
+		seasonRegex := regexp.MustCompile(`(?i)(?:s|сезон)[\s:]*(\d+)|(\d+)\s*сезон`)
+		matches := seasonRegex.FindAllStringSubmatch(torrent.Title, -1)
+		for _, match := range matches {
+			seasonNumber := 0
+			if match[1] != "" {
+				seasonNumber, _ = strconv.Atoi(match[1])
+			} else if match[2] != "" {
+				seasonNumber, _ = strconv.Atoi(match[2])
+			}
+			if seasonNumber > 0 {
+				seasons[seasonNumber] = true
+			}
+		}
+		
+		// Если сезоны не найдены, добавляем в группу "unknown"
+		if len(seasons) == 0 {
+			groups["Неизвестно"] = append(groups["Неизвестно"], torrent)
+		} else {
+			// Добавляем торрент во все соответствующие группы сезонов
+			for season := range seasons {
+				seasonKey := fmt.Sprintf("Сезон %d", season)
+				// Проверяем дубликаты
+				found := false
+				for _, existing := range groups[seasonKey] {
+					if existing.MagnetLink == torrent.MagnetLink {
+						found = true
+						break
+					}
+				}
+				if !found {
+					groups[seasonKey] = append(groups[seasonKey], torrent)
+				}
+			}
+		}
+	}
+	
+	// Сортируем торренты внутри каждой группы по сидам
+	for season := range groups {
+		sort.Slice(groups[season], func(i, j int) bool {
+			return groups[season][i].Seeders > groups[season][j].Seeders
+		})
+	}
+	
+	return groups
+}
+
+// GetAvailableSeasons - получение доступных сезонов для сериала
+func (s *TorrentService) GetAvailableSeasons(title, originalTitle, year string) ([]int, error) {
+	response, err := s.SearchSeries(title, originalTitle, year, nil)
+	if err != nil {
+		return nil, err
+	}
+	
+	seasonsSet := make(map[int]bool)
+	
+	for _, torrent := range response.Results {
+		// Извлекаем из поля seasons
+		for _, season := range torrent.Seasons {
+			seasonsSet[season] = true
+		}
+		
+		// Извлекаем из названия
+		seasonRegex := regexp.MustCompile(`(?i)(?:s|сезон)[\s:]*(\d+)|(\d+)\s*сезон`)
+		matches := seasonRegex.FindAllStringSubmatch(torrent.Title, -1)
+		for _, match := range matches {
+			seasonNumber := 0
+			if match[1] != "" {
+				seasonNumber, _ = strconv.Atoi(match[1])
+			} else if match[2] != "" {
+				seasonNumber, _ = strconv.Atoi(match[2])
+			}
+			if seasonNumber > 0 {
+				seasonsSet[seasonNumber] = true
+			}
+		}
+	}
+	
+	var seasons []int
+	for season := range seasonsSet {
+		seasons = append(seasons, season)
+	}
+	
+	sort.Ints(seasons)
+	return seasons, nil
+}
+
+// Вспомогательные функции
+func (s *TorrentService) qualityMeetsMinimum(quality, minQuality string) bool {
+	qualityOrder := map[string]int{
+		"360p": 1, "480p": 2, "720p": 3, "1080p": 4, "1440p": 5, "4K": 6, "2160p": 6,
+	}
+	
+	currentLevel := qualityOrder[strings.ToLower(quality)]
+	minLevel := qualityOrder[strings.ToLower(minQuality)]
+	
+	return currentLevel >= minLevel
+}
+
+func (s *TorrentService) qualityMeetsMaximum(quality, maxQuality string) bool {
+	qualityOrder := map[string]int{
+		"360p": 1, "480p": 2, "720p": 3, "1080p": 4, "1440p": 5, "4K": 6, "2160p": 6,
+	}
+	
+	currentLevel := qualityOrder[strings.ToLower(quality)]
+	maxLevel := qualityOrder[strings.ToLower(maxQuality)]
+	
+	return currentLevel <= maxLevel
+}
+
 func (s *TorrentService) compareSizes(size1, size2 string) bool {
 	// Простое сравнение размеров (можно улучшить)
 	return len(size1) < len(size2)
+}
+
+func (s *TorrentService) contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *TorrentService) containsAny(slice []string, items []string) bool {
+	for _, item := range items {
+		if s.contains(slice, item) {
+			return true
+		}
+	}
+	return false
 }

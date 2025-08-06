@@ -191,21 +191,80 @@ type APIResponse struct {
 
 // Модели для торрентов
 type TorrentResult struct {
-	Title       string `json:"title"`
-	Size        string `json:"size"`
-	Seeders     int    `json:"seeders"`
-	Leechers    int    `json:"leechers"`
-	Quality     string `json:"quality"`
-	Type        string `json:"type"`
-	MagnetLink  string `json:"magnet_link"`
-	TorrentLink string `json:"torrent_link"`
-	AddedDate   string `json:"added_date"`
+	Title       string    `json:"title"`
+	Tracker     string    `json:"tracker"`
+	Size        string    `json:"size"`
+	Seeders     int       `json:"seeders"`
+	Peers       int       `json:"peers"`
+	Leechers    int       `json:"leechers"`
+	Quality     string    `json:"quality"`
+	Voice       []string  `json:"voice,omitempty"`
+	Types       []string  `json:"types,omitempty"`
+	Seasons     []int     `json:"seasons,omitempty"`
+	Category    string    `json:"category"`
+	MagnetLink  string    `json:"magnet"`
+	TorrentLink string    `json:"torrent_link,omitempty"`
+	Details     string    `json:"details,omitempty"`
+	PublishDate string    `json:"publish_date"`
+	AddedDate   string    `json:"added_date,omitempty"`
+	Source      string    `json:"source"`
 }
 
 type TorrentSearchResponse struct {
 	Query   string          `json:"query"`
 	Results []TorrentResult `json:"results"`
 	Total   int             `json:"total"`
+}
+
+// RedAPI специфичные структуры
+type RedAPIResponse struct {
+	Results []RedAPITorrent `json:"Results"`
+}
+
+type RedAPITorrent struct {
+	Title       string            `json:"Title"`
+	Tracker     string            `json:"Tracker"`
+	Size        interface{}       `json:"Size"` // Может быть string или number
+	Seeders     int               `json:"Seeders"`
+	Peers       int               `json:"Peers"`
+	MagnetUri   string            `json:"MagnetUri"`
+	PublishDate string            `json:"PublishDate"`
+	CategoryDesc string           `json:"CategoryDesc"`
+	Details     string            `json:"Details"`
+	Info        *RedAPITorrentInfo `json:"Info,omitempty"`
+}
+
+type RedAPITorrentInfo struct {
+	Quality interface{} `json:"quality,omitempty"` // Может быть string или number
+	Voices  []string    `json:"voices,omitempty"`
+	Types   []string    `json:"types,omitempty"`
+	Seasons []int       `json:"seasons,omitempty"`
+}
+
+// Alloha API структуры для получения информации о фильмах
+type AllohaResponse struct {
+	Data *AllohaData `json:"data"`
+}
+
+type AllohaData struct {
+	Name         string `json:"name"`
+	OriginalName string `json:"original_name"`
+}
+
+// Опции поиска торрентов
+type TorrentSearchOptions struct {
+	Season           *int
+	Quality          []string
+	MinQuality       string
+	MaxQuality       string
+	ExcludeQualities []string
+	HDR              *bool
+	HEVC             *bool
+	SortBy           string
+	SortOrder        string
+	GroupByQuality   bool
+	GroupBySeason    bool
+	ContentType      string
 }
 
 // Модели для плееров
