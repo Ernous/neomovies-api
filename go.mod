@@ -1,6 +1,8 @@
 module neomovies-api
 
-go 1.21
+go 1.22.0
+
+toolchain go1.24.2
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.0
@@ -13,6 +15,7 @@ require (
 )
 
 require (
+	github.com/MarceloPetrucio/go-scalar-api-reference v0.0.0-20240521013641-ce5d2efe0e06 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
