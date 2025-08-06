@@ -1,0 +1,106 @@
+package handler
+
+import (
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+
+	"neomovies-api/internal/config"
+	"neomovies-api/internal/database"
+	handlersPkg "neomovies-api/internal/handlers"
+	"neomovies-api/internal/middleware"
+	"neomovies-api/internal/services"
+)
+
+func Handler(w http.ResponseWriter, r *http.Request) {
+	// Загружаем переменные окружения (в Vercel они уже установлены)
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found (normal for Vercel)")
+	}
+
+	// Инициализируем конфигурацию
+	cfg := config.New()
+
+	// Подключаемся к базе данных
+	db, err := database.Connect(cfg.MongoURI)
+	if err != nil {
+		log.Printf("Failed to connect to database: %v", err)
+		http.Error(w, "Database connection failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Инициализируем сервисы
+	tmdbService := services.NewTMDBService(cfg.TMDBAPIKey)
+	authService := services.NewAuthService(db, cfg.JWTSecret)
+	movieService := services.NewMovieService(db, tmdbService)
+	tvService := services.NewTVService(db, tmdbService)
+
+	// Создаем обработчики
+	authHandler := handlersPkg.NewAuthHandler(authService)
+	movieHandler := handlersPkg.NewMovieHandler(movieService)
+	tvHandler := handlersPkg.NewTVHandler(tvService)
+	docsHandler := handlersPkg.NewDocsHandler()
+
+	// Настраиваем маршруты
+	router := mux.NewRouter()
+
+	// Документация API
+	router.PathPrefix("/docs/").Handler(http.StripPrefix("/docs/", docsHandler))
+	router.HandleFunc("/docs", docsHandler.RedirectToDocs).Methods("GET")
+	router.HandleFunc("/openapi.json", docsHandler.GetOpenAPISpec).Methods("GET")
+
+	// API маршруты
+	api := router.PathPrefix("/api/v1").Subrouter()
+
+	// Публичные маршруты
+	api.HandleFunc("/health", handlersPkg.HealthCheck).Methods("GET")
+	api.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
+	api.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
+
+	// Маршруты для фильмов
+	api.HandleFunc("/movies/search", movieHandler.Search).Methods("GET")
+	api.HandleFunc("/movies/popular", movieHandler.Popular).Methods("GET")
+	api.HandleFunc("/movies/top-rated", movieHandler.TopRated).Methods("GET")
+	api.HandleFunc("/movies/upcoming", movieHandler.Upcoming).Methods("GET")
+	api.HandleFunc("/movies/now-playing", movieHandler.NowPlaying).Methods("GET")
+	api.HandleFunc("/movies/{id}", movieHandler.GetByID).Methods("GET")
+	api.HandleFunc("/movies/{id}/recommendations", movieHandler.GetRecommendations).Methods("GET")
+	api.HandleFunc("/movies/{id}/similar", movieHandler.GetSimilar).Methods("GET")
+
+	// Маршруты для сериалов
+	api.HandleFunc("/tv/search", tvHandler.Search).Methods("GET")
+	api.HandleFunc("/tv/popular", tvHandler.Popular).Methods("GET")
+	api.HandleFunc("/tv/top-rated", tvHandler.TopRated).Methods("GET")
+	api.HandleFunc("/tv/on-the-air", tvHandler.OnTheAir).Methods("GET")
+	api.HandleFunc("/tv/airing-today", tvHandler.AiringToday).Methods("GET")
+	api.HandleFunc("/tv/{id}", tvHandler.GetByID).Methods("GET")
+	api.HandleFunc("/tv/{id}/recommendations", tvHandler.GetRecommendations).Methods("GET")
+	api.HandleFunc("/tv/{id}/similar", tvHandler.GetSimilar).Methods("GET")
+
+	// Приватные маршруты (требуют авторизации)
+	protected := api.PathPrefix("").Subrouter()
+	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
+
+	// Избранное
+	protected.HandleFunc("/favorites", movieHandler.GetFavorites).Methods("GET")
+	protected.HandleFunc("/favorites/{id}", movieHandler.AddToFavorites).Methods("POST")
+	protected.HandleFunc("/favorites/{id}", movieHandler.RemoveFromFavorites).Methods("DELETE")
+
+	// Пользовательские данные
+	protected.HandleFunc("/auth/profile", authHandler.GetProfile).Methods("GET")
+	protected.HandleFunc("/auth/profile", authHandler.UpdateProfile).Methods("PUT")
+
+	// CORS middleware
+	corsHandler := handlers.CORS(
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+		handlers.AllowedHeaders([]string{"*"}),
+	)
+
+	// Обрабатываем запрос
+	corsHandler(router).ServeHTTP(w, r)
+}
