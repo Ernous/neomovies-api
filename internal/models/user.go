@@ -7,14 +7,19 @@ import (
 )
 
 type User struct {
-	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Email     string             `json:"email" bson:"email" validate:"required,email"`
-	Password  string             `json:"-" bson:"password" validate:"required,min=6"`
-	Name      string             `json:"name" bson:"name" validate:"required"`
-	Avatar    string             `json:"avatar" bson:"avatar"`
-	Favorites []string           `json:"favorites" bson:"favorites"`
-	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
+	ID                 primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Email              string             `json:"email" bson:"email" validate:"required,email"`
+	Password           string             `json:"-" bson:"password" validate:"required,min=6"`
+	Name               string             `json:"name" bson:"name" validate:"required"`
+	Avatar             string             `json:"avatar" bson:"avatar"`
+	Favorites          []string           `json:"favorites" bson:"favorites"`
+	Verified           bool               `json:"verified" bson:"verified"`
+	VerificationCode   string             `json:"-" bson:"verificationCode,omitempty"`
+	VerificationExpires time.Time         `json:"-" bson:"verificationExpires,omitempty"`
+	IsAdmin            bool               `json:"isAdmin" bson:"isAdmin"`
+	AdminVerified      bool               `json:"adminVerified" bson:"adminVerified"`
+	CreatedAt          time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at" bson:"updated_at"`
 }
 
 type LoginRequest struct {
@@ -31,4 +36,13 @@ type RegisterRequest struct {
 type AuthResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
+}
+
+type VerifyEmailRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Code  string `json:"code" validate:"required"`
+}
+
+type ResendCodeRequest struct {
+	Email string `json:"email" validate:"required,email"`
 }

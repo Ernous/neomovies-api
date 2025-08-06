@@ -217,6 +217,109 @@ func getOpenAPISpec() *OpenAPISpec {
 					},
 				},
 			},
+			"/api/v1/auth/verify": map[string]interface{}{
+				"post": map[string]interface{}{
+					"tags":        []string{"Authentication"},
+					"summary":     "Подтверждение email",
+					"description": "Подтверждение email пользователя с помощью кода",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"required": []string{"email", "code"},
+									"properties": map[string]interface{}{
+										"email": map[string]interface{}{
+											"type":        "string",
+											"format":      "email",
+											"description": "Email пользователя",
+											"example":     "user@example.com",
+										},
+										"code": map[string]interface{}{
+											"type":        "string",
+											"description": "6-значный код верификации",
+											"example":     "123456",
+										},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Email успешно подтвержден",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"success": map[string]interface{}{
+												"type": "boolean",
+											},
+											"message": map[string]interface{}{
+												"type": "string",
+											},
+										},
+									},
+								},
+							},
+						},
+						"400": map[string]interface{}{
+							"description": "Неверный или истекший код",
+						},
+					},
+				},
+			},
+			"/api/v1/auth/resend-code": map[string]interface{}{
+				"post": map[string]interface{}{
+					"tags":        []string{"Authentication"},
+					"summary":     "Повторная отправка кода",
+					"description": "Повторная отправка кода верификации на email",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"required": []string{"email"},
+									"properties": map[string]interface{}{
+										"email": map[string]interface{}{
+											"type":        "string",
+											"format":      "email",
+											"description": "Email пользователя",
+											"example":     "user@example.com",
+										},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Код отправлен на email",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"success": map[string]interface{}{
+												"type": "boolean",
+											},
+											"message": map[string]interface{}{
+												"type": "string",
+											},
+										},
+									},
+								},
+							},
+						},
+						"400": map[string]interface{}{
+							"description": "Email уже подтвержден или пользователь не найден",
+						},
+					},
+				},
+			},
 			"/api/v1/auth/login": map[string]interface{}{
 				"post": map[string]interface{}{
 					"summary": "Авторизация пользователя",

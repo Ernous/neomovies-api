@@ -66,27 +66,30 @@ func (s *EmailService) SendEmail(options *EmailOptions) error {
 }
 
 // Предустановленные шаблоны email
-func (s *EmailService) SendWelcomeEmail(userEmail, userName string) error {
+func (s *EmailService) SendVerificationEmail(userEmail, code string) error {
 	options := &EmailOptions{
 		To:      []string{userEmail},
-		Subject: "Добро пожаловать в Neo Movies!",
+		Subject: "Подтверждение регистрации Neo Movies",
 		Body: fmt.Sprintf(`
-			<html>
-			<body>
-				<h2>Добро пожаловать, %s!</h2>
-				<p>Спасибо за регистрацию в Neo Movies API.</p>
-				<p>Теперь вы можете:</p>
-				<ul>
-					<li>Искать фильмы и сериалы</li>
-					<li>Добавлять в избранное</li>
-					<li>Получать персональные рекомендации</li>
-				</ul>
-				<p>Наслаждайтесь использованием нашего сервиса!</p>
-				<br>
-				<p>С уважением,<br>Команда Neo Movies</p>
-			</body>
-			</html>
-		`, userName),
+			<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+				<h1 style="color: #2196f3;">Neo Movies</h1>
+				<p>Здравствуйте!</p>
+				<p>Для завершения регистрации введите этот код:</p>
+				<div style="
+					background: #f5f5f5;
+					padding: 20px;
+					border-radius: 8px;
+					text-align: center;
+					font-size: 24px;
+					letter-spacing: 4px;
+					margin: 20px 0;
+				">
+					%s
+				</div>
+				<p>Код действителен в течение 10 минут.</p>
+				<p>Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.</p>
+			</div>
+		`, code),
 		IsHTML: true,
 	}
 

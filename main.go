@@ -68,6 +68,8 @@ func main() {
 	api.HandleFunc("/health", appHandlers.HealthCheck).Methods("GET")
 	api.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
 	api.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
+	api.HandleFunc("/auth/verify", authHandler.VerifyEmail).Methods("POST")
+	api.HandleFunc("/auth/resend-code", authHandler.ResendVerificationCode).Methods("POST")
 
 	// Поиск
 	r.HandleFunc("/search/multi", searchHandler.MultiSearch).Methods("GET")

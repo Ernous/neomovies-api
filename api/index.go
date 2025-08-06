@@ -69,6 +69,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	api.HandleFunc("/health", handlersPkg.HealthCheck).Methods("GET")
 	api.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
 	api.HandleFunc("/auth/login", authHandler.Login).Methods("POST")
+	api.HandleFunc("/auth/verify", authHandler.VerifyEmail).Methods("POST")
+	api.HandleFunc("/auth/resend-code", authHandler.ResendVerificationCode).Methods("POST")
 
 	// Поиск
 	router.HandleFunc("/search/multi", searchHandler.MultiSearch).Methods("GET")
