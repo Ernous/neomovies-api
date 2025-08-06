@@ -10,13 +10,11 @@ import (
 )
 
 type DocsHandler struct {
-	openAPISpec *OpenAPISpec
+	// Убираем статическую спецификацию
 }
 
 func NewDocsHandler() *DocsHandler {
-	return &DocsHandler{
-		openAPISpec: getOpenAPISpec(),
-	}
+	return &DocsHandler{}
 }
 
 func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -30,9 +28,22 @@ func (h *DocsHandler) RedirectToDocs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *DocsHandler) GetOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+	// Определяем baseURL динамически
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		if r.TLS != nil {
+			baseURL = fmt.Sprintf("https://%s", r.Host)
+		} else {
+			baseURL = fmt.Sprintf("http://%s", r.Host)
+		}
+	}
+
+	// Генерируем спецификацию с правильным URL
+	spec := getOpenAPISpecWithURL(baseURL)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	json.NewEncoder(w).Encode(h.openAPISpec)
+	json.NewEncoder(w).Encode(spec)
 }
 
 func (h *DocsHandler) ServeDocs(w http.ResponseWriter, r *http.Request) {
@@ -98,12 +109,7 @@ type SecurityScheme struct {
 	BearerFormat string `json:"bearerFormat,omitempty"`
 }
 
-func getOpenAPISpec() *OpenAPISpec {
-	baseURL := os.Getenv("BASE_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:3000"
-	}
-
+func getOpenAPISpecWithURL(baseURL string) *OpenAPISpec {
 	return &OpenAPISpec{
 		OpenAPI: "3.0.0",
 		Info: Info{
