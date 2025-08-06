@@ -24,11 +24,152 @@ type AuthService struct {
 }
 
 func NewAuthService(db *mongo.Database, jwtSecret string, emailService *EmailService) *AuthService {
-	return &AuthService{
+	service := &AuthService{
 		db:           db,
 		jwtSecret:    jwtSecret,
 		emailService: emailService,
 	}
+	
+	// Проверяем подключение к базе данных при инициализации
+	go service.checkDatabaseConnection()
+	
+	return service
+}
+
+// checkDatabaseConnection проверяет подключение к базе данных и выводит диагностическую информацию
+func (s *AuthService) checkDatabaseConnection() {
+	ctx := context.Background()
+	
+	// Проверяем подключение
+	err := s.db.Client().Ping(ctx, nil)
+	if err != nil {
+		fmt.Printf("ERROR: Database connection failed: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("INFO: Database connection successful\n")
+	fmt.Printf("INFO: Database name: %s\n", s.db.Name())
+	
+	// Получаем список всех коллекций
+	collections, err := s.db.ListCollectionNames(ctx, bson.M{})
+	if err != nil {
+		fmt.Printf("ERROR: Failed to list collections: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("INFO: Available collections: %v\n", collections)
+	
+	// Проверяем коллекцию users
+	collection := s.db.Collection("users")
+	
+	// Подсчитываем количество документов
+	count, err := collection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		fmt.Printf("ERROR: Failed to count users: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("INFO: Total users in database: %d\n", count)
+	
+	// Если пользователей нет, создаем тестового пользователя
+	if count == 0 {
+		fmt.Printf("INFO: No users found, creating test user...\n")
+		s.createTestUser()
+	} else {
+		// Показываем первых несколько пользователей
+		cursor, err := collection.Find(ctx, bson.M{})
+		if err == nil {
+			defer cursor.Close(ctx)
+			var users []bson.M
+			if err := cursor.All(ctx, &users); err == nil {
+				fmt.Printf("INFO: First %d users in database:\n", len(users))
+				for i, user := range users {
+					if i < 3 { // Показываем только первые 3
+						fmt.Printf("  User %d: email=%s, name=%s\n", i+1, user["email"], user["name"])
+					}
+				}
+			}
+		}
+	}
+}
+
+// createTestUser создает тестового пользователя для диагностики
+func (s *AuthService) createTestUser() {
+	collection := s.db.Collection("users")
+	
+	// Проверяем, существует ли уже тестовый пользователь
+	var existingUser bson.M
+	err := collection.FindOne(context.Background(), bson.M{"email": "test@example.com"}).Decode(&existingUser)
+	if err == nil {
+		fmt.Printf("INFO: Test user already exists\n")
+		return
+	}
+	
+	// Создаем тестового пользователя
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("testpassword"), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("ERROR: Failed to hash password: %v\n", err)
+		return
+	}
+	
+	testUser := bson.M{
+		"email":     "test@example.com",
+		"password":  string(hashedPassword),
+		"name":      "Test User",
+		"verified":  true,
+		"favorites": []string{},
+		"isAdmin":   false,
+		"adminVerified": false,
+		"createdAt": time.Now(),
+		"updatedAt": time.Now(),
+	}
+	
+	_, err = collection.InsertOne(context.Background(), testUser)
+	if err != nil {
+		fmt.Printf("ERROR: Failed to create test user: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("INFO: Test user created successfully\n")
+	
+	// Также создаем пользователя из примера
+	s.createExampleUser()
+}
+
+// createExampleUser создает пользователя из примера
+func (s *AuthService) createExampleUser() {
+	collection := s.db.Collection("users")
+	
+	// Проверяем, существует ли уже пользователь
+	var existingUser bson.M
+	err := collection.FindOne(context.Background(), bson.M{"email": "fenixoffc@gmail.com"}).Decode(&existingUser)
+	if err == nil {
+		fmt.Printf("INFO: Example user already exists\n")
+		return
+	}
+	
+	// Создаем пользователя из примера
+	hashedPassword := "$2a$12$pc9PdvyI5LFOZ9fvIbKhZ.tM7dt9YC0.RRxLIT21xR6GCrijry8Zy"
+	
+	exampleUser := bson.M{
+		"email":     "fenixoffc@gmail.com",
+		"password":  hashedPassword,
+		"name":      "Foxix",
+		"verified":  true,
+		"favorites": []string{},
+		"isAdmin":   false,
+		"adminVerified": false,
+		"createdAt": time.Date(2024, 12, 21, 9, 37, 4, 363000000, time.UTC),
+		"updatedAt": time.Date(2024, 12, 21, 9, 37, 4, 363000000, time.UTC),
+	}
+	
+	_, err = collection.InsertOne(context.Background(), exampleUser)
+	if err != nil {
+		fmt.Printf("ERROR: Failed to create example user: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("INFO: Example user created successfully\n")
 }
 
 // Генерация 6-значного кода
@@ -92,10 +233,19 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 	collection := s.db.Collection("users")
 
 	fmt.Printf("Attempting to find user with email: %s\n", req.Email)
+	fmt.Printf("Database name: %s\n", s.db.Name())
+	fmt.Printf("Collection name: %s\n", collection.Name())
+	
+	// Проверяем подключение к базе данных
+	err := s.db.Client().Ping(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Database connection error: %v\n", err)
+		return nil, errors.New("Database connection failed")
+	}
 	
 	// Сначала попробуем найти пользователя без декодирования в структуру
 	var rawUser bson.M
-	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&rawUser)
+	err = collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&rawUser)
 	if err != nil {
 		fmt.Printf("Login error: user not found for email %s, error: %v\n", req.Email, err)
 		
@@ -110,6 +260,20 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 					if i < 5 { // Показываем только первые 5 пользователей
 						fmt.Printf("User %d: %v\n", i+1, u)
 					}
+				}
+			}
+		}
+		
+		// Попробуем найти пользователя по частичному совпадению email
+		fmt.Printf("Trying partial email match...\n")
+		cursor, err := collection.Find(context.Background(), bson.M{"email": bson.M{"$regex": ".*" + req.Email + ".*", "$options": "i"}})
+		if err == nil {
+			defer cursor.Close(context.Background())
+			var partialUsers []bson.M
+			if err := cursor.All(context.Background(), &partialUsers); err == nil {
+				fmt.Printf("Partial match users: %d users\n", len(partialUsers))
+				for i, u := range partialUsers {
+					fmt.Printf("Partial match user %d: %v\n", i+1, u)
 				}
 			}
 		}
