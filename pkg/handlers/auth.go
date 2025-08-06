@@ -52,7 +52,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	response, err := h.authService.Login(req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		// Определяем правильный статус код в зависимости от ошибки
+		statusCode := http.StatusBadRequest
+		if err.Error() == "Account not activated. Please verify your email." {
+			statusCode = http.StatusForbidden // 403 для неверифицированного email
+		}
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
