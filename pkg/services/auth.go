@@ -37,7 +37,7 @@ func (s *AuthService) generateVerificationCode() string {
 }
 
 func (s *AuthService) Register(req models.RegisterRequest) (map[string]interface{}, error) {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 
 	// Проверяем, не существует ли уже пользователь с таким email
 	var existingUser models.User
@@ -89,7 +89,7 @@ func (s *AuthService) Register(req models.RegisterRequest) (map[string]interface
 }
 
 func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, error) {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 
 	fmt.Printf("Attempting to find user with email: %s\n", req.Email)
 	
@@ -157,7 +157,7 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 }
 
 func (s *AuthService) GetUserByID(userID string) (*models.User, error) {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
@@ -174,7 +174,7 @@ func (s *AuthService) GetUserByID(userID string) (*models.User, error) {
 }
 
 func (s *AuthService) UpdateUser(userID string, updates bson.M) (*models.User, error) {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
@@ -209,7 +209,7 @@ func (s *AuthService) generateJWT(userID string) (string, error) {
 
 // Верификация email
 func (s *AuthService) VerifyEmail(req models.VerifyEmailRequest) (map[string]interface{}, error) {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 
 	var user models.User
 	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
@@ -253,7 +253,7 @@ func (s *AuthService) VerifyEmail(req models.VerifyEmailRequest) (map[string]int
 
 // Повторная отправка кода верификации
 func (s *AuthService) ResendVerificationCode(req models.ResendCodeRequest) (map[string]interface{}, error) {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 
 	var user models.User
 	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)

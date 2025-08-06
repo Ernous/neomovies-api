@@ -55,7 +55,7 @@ func (s *MovieService) GetSimilar(id, page int, language string) (*models.TMDBRe
 }
 
 func (s *MovieService) AddToFavorites(userID string, movieID string) error {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 	
 	filter := bson.M{"_id": userID}
 	update := bson.M{
@@ -67,7 +67,7 @@ func (s *MovieService) AddToFavorites(userID string, movieID string) error {
 }
 
 func (s *MovieService) RemoveFromFavorites(userID string, movieID string) error {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 	
 	filter := bson.M{"_id": userID}
 	update := bson.M{
@@ -79,7 +79,7 @@ func (s *MovieService) RemoveFromFavorites(userID string, movieID string) error 
 }
 
 func (s *MovieService) GetFavorites(userID string, language string) ([]models.Movie, error) {
-	collection := s.db.Collection("users")
+	collection := s.db.Collection("User")
 	
 	var user models.User
 	err := collection.FindOne(context.Background(), bson.M{"_id": userID}).Decode(&user)
