@@ -93,10 +93,37 @@ func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, erro
 
 	fmt.Printf("Attempting to find user with email: %s\n", req.Email)
 	
-	var user models.User
-	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
+	// Сначала попробуем найти пользователя без декодирования в структуру
+	var rawUser bson.M
+	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&rawUser)
 	if err != nil {
 		fmt.Printf("Login error: user not found for email %s, error: %v\n", req.Email, err)
+		
+		// Попробуем найти всех пользователей с похожим email для диагностики
+		cursor, err := collection.Find(context.Background(), bson.M{})
+		if err == nil {
+			defer cursor.Close(context.Background())
+			var allUsers []bson.M
+			if err := cursor.All(context.Background(), &allUsers); err == nil {
+				fmt.Printf("All users in database: %d users\n", len(allUsers))
+				for i, u := range allUsers {
+					if i < 5 { // Показываем только первые 5 пользователей
+						fmt.Printf("User %d: %v\n", i+1, u)
+					}
+				}
+			}
+		}
+		
+		return nil, errors.New("User not found")
+	}
+	
+	fmt.Printf("Raw user found: %v\n", rawUser)
+	
+	// Теперь декодируем в структуру
+	var user models.User
+	err = collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
+	if err != nil {
+		fmt.Printf("Error decoding user to struct: %v\n", err)
 		return nil, errors.New("User not found")
 	}
 	
