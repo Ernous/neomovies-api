@@ -208,7 +208,7 @@ func (s *TorrentService) SearchMovies(title, originalTitle, year string) (*model
 	return response, nil
 }
 
-// SearchSeries - поиск сериалов с поддержкой сезонов
+// SearchSeries - поиск сериалов с поддержкой fallback и фильтрации по сезону
 func (s *TorrentService) SearchSeries(title, originalTitle, year string, season *int) (*models.TorrentSearchResponse, error) {
 	params := map[string]string{
 		"title":          title,
@@ -217,20 +217,82 @@ func (s *TorrentService) SearchSeries(title, originalTitle, year string, season 
 		"is_serial":      "2",
 		"category":       "5000",
 	}
-	
 	if season != nil {
 		params["season"] = strconv.Itoa(*season)
 	}
-	
+
 	response, err := s.SearchTorrents(params)
 	if err != nil {
 		return nil, err
 	}
-	
+
+	// Если указан сезон и результатов мало, делаем fallback-поиск без сезона и фильтруем на клиенте
+	if season != nil && len(response.Results) < 5 {
+		paramsNoSeason := map[string]string{
+			"title":          title,
+			"title_original": originalTitle,
+			"year":           year,
+			"is_serial":      "2",
+			"category":       "5000",
+		}
+		fallbackResp, err := s.SearchTorrents(paramsNoSeason)
+		if err == nil {
+			filtered := s.filterBySeason(fallbackResp.Results, *season)
+			// Объединяем и убираем дубликаты по MagnetLink
+			all := append(response.Results, filtered...)
+			unique := make([]models.TorrentResult, 0, len(all))
+			seen := make(map[string]bool)
+			for _, t := range all {
+				if !seen[t.MagnetLink] {
+					unique = append(unique, t)
+					seen[t.MagnetLink] = true
+				}
+			}
+			response.Results = unique
+		}
+	}
+
 	response.Results = s.FilterByContentType(response.Results, "serial")
 	response.Total = len(response.Results)
-	
 	return response, nil
+}
+
+// filterBySeason - фильтрация результатов по сезону (аналогично JS)
+func (s *TorrentService) filterBySeason(results []models.TorrentResult, season int) []models.TorrentResult {
+	if season == 0 {
+		return results
+	}
+	filtered := make([]models.TorrentResult, 0, len(results))
+	seasonRegex := regexp.MustCompile(`(?i)(?:s|сезон)[\s:]*(\d+)|(\d+)\s*сезон`)
+	for _, torrent := range results {
+		found := false
+		// Проверяем поле seasons
+		for _, s := range torrent.Seasons {
+			if s == season {
+				found = true
+				break
+			}
+		}
+		if found {
+			filtered = append(filtered, torrent)
+			continue
+		}
+		// Проверяем в названии
+		matches := seasonRegex.FindAllStringSubmatch(torrent.Title, -1)
+		for _, match := range matches {
+			seasonNumber := 0
+			if match[1] != "" {
+				seasonNumber, _ = strconv.Atoi(match[1])
+			} else if match[2] != "" {
+				seasonNumber, _ = strconv.Atoi(match[2])
+			}
+			if seasonNumber == season {
+				filtered = append(filtered, torrent)
+				break
+			}
+		}
+	}
+	return filtered
 }
 
 // SearchAnime - поиск аниме
