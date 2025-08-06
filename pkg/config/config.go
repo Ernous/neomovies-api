@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 )
 
@@ -18,8 +19,24 @@ type Config struct {
 }
 
 func New() *Config {
+	// Добавляем отладочное логирование для Vercel
+	mongoURI := getEnv("MONGO_URI", "mongodb://localhost:27017/neomovies")
+	log.Printf("DEBUG: MONGO_URI = %s (length: %d)", mongoURI, len(mongoURI))
+	
+	// Попробуем также другие возможные названия переменных
+	if mongoURI == "mongodb://localhost:27017/neomovies" {
+		alternatives := []string{"MONGODB_URI", "DATABASE_URL", "MONGO_URL"}
+		for _, alt := range alternatives {
+			if altValue := os.Getenv(alt); altValue != "" {
+				log.Printf("DEBUG: Found alternative env var %s = %s", alt, altValue)
+				mongoURI = altValue
+				break
+			}
+		}
+	}
+	
 	return &Config{
-		MongoURI:        getEnv("MONGO_URI", "mongodb://localhost:27017/neomovies"),
+		MongoURI:        mongoURI,
 		TMDBAccessToken: getEnv("TMDB_ACCESS_TOKEN", ""),
 		JWTSecret:       getEnv("JWT_SECRET", "your-secret-key"),
 		Port:            getEnv("PORT", "3000"),
