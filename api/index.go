@@ -3,7 +3,6 @@ package handler
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -85,6 +84,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	// Торренты
 	api.HandleFunc("/torrents/search/{imdbId}", torrentsHandler.SearchTorrents).Methods("GET")
+	api.HandleFunc("/torrents/movies", torrentsHandler.SearchMovies).Methods("GET")
+	api.HandleFunc("/torrents/series", torrentsHandler.SearchSeries).Methods("GET")
+	api.HandleFunc("/torrents/anime", torrentsHandler.SearchAnime).Methods("GET")
+	api.HandleFunc("/torrents/seasons", torrentsHandler.GetAvailableSeasons).Methods("GET")
+	api.HandleFunc("/torrents/search", torrentsHandler.SearchByQuery).Methods("GET")
 
 	// Реакции (публичные)
 	api.HandleFunc("/reactions/{mediaType}/{mediaId}/counts", reactionsHandler.GetReactionCounts).Methods("GET")
