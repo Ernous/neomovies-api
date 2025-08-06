@@ -56,9 +56,8 @@ func main() {
 	// Настраиваем маршруты
 	r := mux.NewRouter()
 
-	// Документация API
-	r.PathPrefix("/docs/").Handler(http.StripPrefix("/docs/", docsHandler))
-	r.HandleFunc("/docs", docsHandler.RedirectToDocs).Methods("GET")
+	// Документация API на корневом пути
+	r.HandleFunc("/", docsHandler.ServeDocs).Methods("GET")
 	r.HandleFunc("/openapi.json", docsHandler.GetOpenAPISpec).Methods("GET")
 
 	// API маршруты
@@ -149,7 +148,7 @@ func main() {
 	}
 
 	log.Printf("Server starting on port %s", port)
-	log.Printf("API documentation available at: http://localhost:%s/docs", port)
+	log.Printf("API documentation available at: http://localhost:%s/", port)
 	
 	log.Fatal(http.ListenAndServe(":"+port, corsHandler(r)))
 }

@@ -80,9 +80,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// Настраиваем маршруты
 	router := mux.NewRouter()
 
-	// Документация API
-	router.PathPrefix("/docs/").Handler(http.StripPrefix("/docs/", docsHandler))
-	router.HandleFunc("/docs", docsHandler.RedirectToDocs).Methods("GET")
+	// Документация API на корневом пути
+	router.HandleFunc("/", docsHandler.ServeDocs).Methods("GET")
 	router.HandleFunc("/openapi.json", docsHandler.GetOpenAPISpec).Methods("GET")
 
 	// API маршруты
