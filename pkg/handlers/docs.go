@@ -181,6 +181,188 @@ func getOpenAPISpec() *OpenAPISpec {
 					},
 				},
 			},
+			"/search/multi": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Мультипоиск",
+					"description": "Поиск фильмов, сериалов и актеров",
+					"tags": []string{"Search"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "query",
+							"in": "query",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "Поисковый запрос",
+						},
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+							"description": "Номер страницы",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Результаты поиска",
+						},
+					},
+				},
+			},
+			"/api/v1/categories": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Получить категории",
+					"description": "Получение списка категорий фильмов",
+					"tags": []string{"Categories"},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список категорий",
+						},
+					},
+				},
+			},
+			"/api/v1/categories/{id}/movies": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Фильмы по категории",
+					"description": "Получение фильмов по категории",
+					"tags": []string{"Categories"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID категории",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Фильмы категории",
+						},
+					},
+				},
+			},
+			"/api/v1/players/alloha": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Плеер Alloha",
+					"description": "Получение плеера Alloha для фильма",
+					"tags": []string{"Players"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "kinopoisk_id",
+							"in": "query",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "ID фильма на Кинопоиске",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Данные плеера",
+						},
+					},
+				},
+			},
+			"/api/v1/players/lumex": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Плеер Lumex",
+					"description": "Получение плеера Lumex для фильма",
+					"tags": []string{"Players"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "kinopoisk_id",
+							"in": "query",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "ID фильма на Кинопоиске",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Данные плеера",
+						},
+					},
+				},
+			},
+			"/api/v1/torrents/search/{imdbId}": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Поиск торрентов",
+					"description": "Поиск торрентов по IMDB ID",
+					"tags": []string{"Torrents"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "imdbId",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "IMDB ID фильма",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Результаты поиска торрентов",
+						},
+					},
+				},
+			},
+			"/api/v1/reactions/{mediaType}/{mediaId}/counts": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Количество реакций",
+					"description": "Получение количества реакций для медиа",
+					"tags": []string{"Reactions"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "mediaType",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "Тип медиа (movie/tv)",
+						},
+						{
+							"name": "mediaId",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "ID медиа",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Количество реакций",
+						},
+					},
+				},
+			},
+			"/api/v1/images/{size}/{path}": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Изображения",
+					"description": "Прокси для изображений TMDB",
+					"tags": []string{"Images"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "size",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "Размер изображения",
+						},
+						{
+							"name": "path",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "Путь к изображению",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Изображение",
+							"content": map[string]interface{}{
+								"image/*": map[string]interface{}{},
+							},
+						},
+					},
+				},
+			},
 			"/api/v1/auth/register": map[string]interface{}{
 				"post": map[string]interface{}{
 					"summary": "Регистрация пользователя",
@@ -543,6 +725,355 @@ func getOpenAPISpec() *OpenAPISpec {
 					"responses": map[string]interface{}{
 						"200": map[string]interface{}{
 							"description": "Фильм удален из избранного",
+						},
+					},
+				},
+			},
+			"/api/v1/movies/top-rated": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Топ рейтинг фильмов",
+					"description": "Получение списка фильмов с высоким рейтингом",
+					"tags": []string{"Movies"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список фильмов с высоким рейтингом",
+						},
+					},
+				},
+			},
+			"/api/v1/movies/upcoming": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Скоро в прокате",
+					"description": "Получение списка фильмов, которые скоро выйдут в прокат",
+					"tags": []string{"Movies"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список фильмов, которые скоро выйдут",
+						},
+					},
+				},
+			},
+			"/api/v1/movies/now-playing": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Сейчас в прокате",
+					"description": "Получение списка фильмов, которые сейчас в прокате",
+					"tags": []string{"Movies"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список фильмов в прокате",
+						},
+					},
+				},
+			},
+			"/api/v1/movies/{id}/recommendations": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Рекомендации фильмов",
+					"description": "Получение рекомендаций фильмов на основе выбранного",
+					"tags": []string{"Movies"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID фильма в TMDB",
+						},
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Рекомендуемые фильмы",
+						},
+					},
+				},
+			},
+			"/api/v1/movies/{id}/similar": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Похожие фильмы",
+					"description": "Получение похожих фильмов",
+					"tags": []string{"Movies"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID фильма в TMDB",
+						},
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Похожие фильмы",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/search": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Поиск сериалов",
+					"description": "Поиск сериалов по названию",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "query",
+							"in": "query",
+							"required": true,
+							"schema": map[string]string{"type": "string"},
+							"description": "Поисковый запрос",
+						},
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Результаты поиска сериалов",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/popular": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Популярные сериалы",
+					"description": "Получение списка популярных сериалов",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список популярных сериалов",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/top-rated": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Топ рейтинг сериалов",
+					"description": "Получение списка сериалов с высоким рейтингом",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список сериалов с высоким рейтингом",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/on-the-air": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "В эфире",
+					"description": "Получение списка сериалов, которые сейчас в эфире",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список сериалов в эфире",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/airing-today": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Сегодня в эфире",
+					"description": "Получение списка сериалов, которые выходят сегодня",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Список сериалов, выходящих сегодня",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/{id}": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Получить сериал по ID",
+					"description": "Подробная информация о сериале",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID сериала в TMDB",
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Информация о сериале",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/{id}/recommendations": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Рекомендации сериалов",
+					"description": "Получение рекомендаций сериалов на основе выбранного",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID сериала в TMDB",
+						},
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Рекомендуемые сериалы",
+						},
+					},
+				},
+			},
+			"/api/v1/tv/{id}/similar": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Похожие сериалы",
+					"description": "Получение похожих сериалов",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID сериала в TMDB",
+						},
+						{
+							"name": "page",
+							"in": "query",
+							"schema": map[string]string{"type": "integer", "default": "1"},
+						},
+						{
+							"name": "language",
+							"in": "query",
+							"schema": map[string]string{"type": "string", "default": "ru-RU"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Похожие сериалы",
 						},
 					},
 				},
