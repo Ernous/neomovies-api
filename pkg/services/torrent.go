@@ -444,14 +444,12 @@ func (s *TorrentService) getTitleFromTMDB(tmdbService *TMDBService, imdbID, medi
 	return "", "", "", fmt.Errorf("no results found for IMDB ID: %s", imdbID)
 }
 
-// FilterByContentType - фильтрация по типу контента
+// Исправленная фильтрация по типу контента (как в JS)
 func (s *TorrentService) FilterByContentType(results []models.TorrentResult, contentType string) []models.TorrentResult {
 	if contentType == "" {
 		return results
 	}
-	
 	var filtered []models.TorrentResult
-	
 	for _, torrent := range results {
 		// Фильтрация по полю types, если оно есть
 		if len(torrent.Types) > 0 {
@@ -461,7 +459,7 @@ func (s *TorrentService) FilterByContentType(results []models.TorrentResult, con
 					filtered = append(filtered, torrent)
 				}
 			case "serial":
-				if s.containsAny(torrent.Types, []string{"serial", "multserial", "docuserial", "tvshow"}) {
+				if s.containsAny(torrent.Types, []string{"serial", "multserial", "docuserial", "tvshow", "multfilm"}) {
 					filtered = append(filtered, torrent)
 				}
 			case "anime":
@@ -471,7 +469,6 @@ func (s *TorrentService) FilterByContentType(results []models.TorrentResult, con
 			}
 			continue
 		}
-
 		// Фильтрация по названию, если types недоступно
 		title := strings.ToLower(torrent.Title)
 		switch contentType {
@@ -491,7 +488,6 @@ func (s *TorrentService) FilterByContentType(results []models.TorrentResult, con
 			filtered = append(filtered, torrent)
 		}
 	}
-	
 	return filtered
 }
 
