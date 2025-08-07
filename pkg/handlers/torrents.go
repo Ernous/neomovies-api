@@ -40,7 +40,22 @@ func (h *TorrentsHandler) SearchTorrents(w http.ResponseWriter, r *http.Request)
 		mediaType = "movie"
 	}
 
-	// Создаем опции поиска
+	// Сезон для сериалов
+	var season *int
+	if seasonStr := r.URL.Query().Get("season"); seasonStr != "" {
+		if seasonInt, err := strconv.Atoi(seasonStr); err == nil {
+			season = &seasonInt
+		}
+	}
+
+	// Используем новый универсальный метод SearchByImdb
+	results, err := h.torrentService.SearchByImdb(imdbID, mediaType, season)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Создаем опции для дополнительной фильтрации
 	options := &models.TorrentSearchOptions{
 		ContentType: mediaType,
 	}
@@ -93,35 +108,27 @@ func (h *TorrentsHandler) SearchTorrents(w http.ResponseWriter, r *http.Request)
 		options.GroupBySeason = true
 	}
 
-	// Сезон для сериалов
-	if season := r.URL.Query().Get("season"); season != "" {
-		if seasonInt, err := strconv.Atoi(season); err == nil {
-			options.Season = &seasonInt
-		}
-	}
-
-	// Поиск торрентов
-	results, err := h.torrentService.SearchTorrentsByIMDbID(h.tmdbService, imdbID, mediaType, options)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	// Применяем дополнительную фильтрацию
+	if options != nil {
+		results = h.torrentService.FilterTorrents(results, options)
+		results = h.torrentService.sortTorrents(results, options.SortBy, options.SortOrder)
 	}
 
 	// Формируем ответ с группировкой если необходимо
 	response := map[string]interface{}{
 		"imdbId": imdbID,
 		"type":   mediaType,
-		"total":  results.Total,
+		"total":  len(results),
 	}
 
-	if options.Season != nil {
-		response["season"] = *options.Season
+	if season != nil {
+		response["season"] = *season
 	}
 
 	// Применяем группировку если запрошена
 	if options.GroupByQuality && options.GroupBySeason {
 		// Группируем сначала по сезонам, затем по качеству внутри каждого сезона
-		seasonGroups := h.torrentService.GroupBySeason(results.Results)
+		seasonGroups := h.torrentService.GroupBySeason(results)
 		finalGroups := make(map[string]map[string][]models.TorrentResult)
 		
 		for season, torrents := range seasonGroups {
@@ -132,19 +139,19 @@ func (h *TorrentsHandler) SearchTorrents(w http.ResponseWriter, r *http.Request)
 		response["grouped"] = true
 		response["groups"] = finalGroups
 	} else if options.GroupByQuality {
-		groups := h.torrentService.GroupByQuality(results.Results)
+		groups := h.torrentService.GroupByQuality(results)
 		response["grouped"] = true
 		response["groups"] = groups
 	} else if options.GroupBySeason {
-		groups := h.torrentService.GroupBySeason(results.Results)
+		groups := h.torrentService.GroupBySeason(results)
 		response["grouped"] = true
 		response["groups"] = groups
 	} else {
 		response["grouped"] = false
-		response["results"] = results.Results
+		response["results"] = results
 	}
 
-	if len(results.Results) == 0 {
+	if len(results) == 0 {
 		response["error"] = "No torrents found for this IMDB ID"
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
