@@ -104,3 +104,7 @@ func (s *MovieService) GetFavorites(userID string, language string) ([]models.Mo
 	
 	return movies, nil
 }
+
+func (s *MovieService) GetExternalIDs(id int) (*models.ExternalIDs, error) {
+	return s.tmdb.GetMovieExternalIDs(id)
+}

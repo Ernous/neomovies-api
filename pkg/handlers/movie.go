@@ -258,6 +258,27 @@ func (h *MovieHandler) RemoveFromFavorites(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+func (h *MovieHandler) GetExternalIDs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid movie ID", http.StatusBadRequest)
+		return
+	}
+
+	externalIDs, err := h.movieService.GetExternalIDs(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.APIResponse{
+		Success: true,
+		Data:    externalIDs,
+	})
+}
+
 func getIntQuery(r *http.Request, key string, defaultValue int) int {
 	str := r.URL.Query().Get(key)
 	if str == "" {
