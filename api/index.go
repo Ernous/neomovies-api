@@ -102,8 +102,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	api.HandleFunc("/categories/{id}/movies", categoriesHandler.GetMoviesByCategory).Methods("GET")
 
 	// Плееры
-	api.HandleFunc("/players/alloha", playersHandler.GetAllohaPlayer).Methods("GET")
-	api.HandleFunc("/players/lumex", playersHandler.GetLumexPlayer).Methods("GET")
+	api.HandleFunc("/players/alloha/{imdb_id}", playersHandler.GetAllohaPlayer).Methods("GET")
+	api.HandleFunc("/players/lumex/{imdb_id}", playersHandler.GetLumexPlayer).Methods("GET")
 
 	// Торренты
 	api.HandleFunc("/torrents/search/{imdbId}", torrentsHandler.SearchTorrents).Methods("GET")
