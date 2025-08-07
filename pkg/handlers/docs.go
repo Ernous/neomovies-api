@@ -215,18 +215,18 @@ func getOpenAPISpecWithURL(baseURL string) *OpenAPISpec {
 					},
 				},
 			},
-			"/api/v1/players/alloha": map[string]interface{}{
+			"/api/v1/players/alloha/{imdb_id}": map[string]interface{}{
 				"get": map[string]interface{}{
 					"summary": "Плеер Alloha",
-					"description": "Получение плеера Alloha для фильма",
+					"description": "Получение плеера Alloha по IMDb ID",
 					"tags": []string{"Players"},
 					"parameters": []map[string]interface{}{
 						{
-							"name": "kinopoisk_id",
-							"in": "query",
+							"name": "imdb_id",
+							"in": "path",
 							"required": true,
 							"schema": map[string]string{"type": "string"},
-							"description": "ID фильма на Кинопоиске",
+							"description": "IMDb ID фильма",
 						},
 					},
 					"responses": map[string]interface{}{
@@ -236,18 +236,18 @@ func getOpenAPISpecWithURL(baseURL string) *OpenAPISpec {
 					},
 				},
 			},
-			"/api/v1/players/lumex": map[string]interface{}{
+			"/api/v1/players/lumex/{imdb_id}": map[string]interface{}{
 				"get": map[string]interface{}{
 					"summary": "Плеер Lumex",
-					"description": "Получение плеера Lumex для фильма",
+					"description": "Получение плеера Lumex по IMDb ID",
 					"tags": []string{"Players"},
 					"parameters": []map[string]interface{}{
 						{
-							"name": "kinopoisk_id",
-							"in": "query",
+							"name": "imdb_id",
+							"in": "path",
 							"required": true,
 							"schema": map[string]string{"type": "string"},
-							"description": "ID фильма на Кинопоиске",
+							"description": "IMDb ID фильма",
 						},
 					},
 					"responses": map[string]interface{}{
