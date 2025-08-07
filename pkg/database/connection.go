@@ -26,7 +26,8 @@ func Connect(uri string) (*mongo.Database, error) {
 		return nil, err
 	}
 
-	return client.Database("neo-db"), nil
+
+	return client.Database("database"), nil
 }
 
 func Disconnect() error {

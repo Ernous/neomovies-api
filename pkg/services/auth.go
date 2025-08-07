@@ -91,58 +91,23 @@ func (s *AuthService) Register(req models.RegisterRequest) (map[string]interface
 func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, error) {
 	collection := s.db.Collection("User")
 
-	fmt.Printf("Attempting to find user with email: %s\n", req.Email)
-	
-	// Сначала попробуем найти пользователя без декодирования в структуру
-	var rawUser bson.M
-	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&rawUser)
-	if err != nil {
-		fmt.Printf("Login error: user not found for email %s, error: %v\n", req.Email, err)
-		
-		// Попробуем найти всех пользователей с похожим email для диагностики
-		cursor, err := collection.Find(context.Background(), bson.M{})
-		if err == nil {
-			defer cursor.Close(context.Background())
-			var allUsers []bson.M
-			if err := cursor.All(context.Background(), &allUsers); err == nil {
-				fmt.Printf("All users in database: %d users\n", len(allUsers))
-				for i, u := range allUsers {
-					if i < 5 { // Показываем только первые 5 пользователей
-						fmt.Printf("User %d: %v\n", i+1, u)
-					}
-				}
-			}
-		}
-		
-		return nil, errors.New("User not found")
-	}
-	
-	fmt.Printf("Raw user found: %v\n", rawUser)
-	
-	// Теперь декодируем в структуру
+	// Находим пользователя по email (точно как в JavaScript)
 	var user models.User
-	err = collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
+	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
-		fmt.Printf("Error decoding user to struct: %v\n", err)
 		return nil, errors.New("User not found")
 	}
-	
-	fmt.Printf("User found: ID=%s, Email=%s, Verified=%v\n", user.ID.Hex(), user.Email, user.Verified)
 
-	// Проверяем верификацию email
+	// Проверяем верификацию email (точно как в JavaScript)
 	if !user.Verified {
-		fmt.Printf("Login error: email not verified for %s\n", req.Email)
 		return nil, errors.New("Account not activated. Please verify your email.")
 	}
 
-	// Проверяем пароль
+	// Проверяем пароль (точно как в JavaScript)
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		fmt.Printf("Login error: invalid password for email %s\n", req.Email)
 		return nil, errors.New("Invalid password")
 	}
-
-	fmt.Printf("Login successful for user %s\n", req.Email)
 
 	// Генерируем JWT токен
 	token, err := s.generateJWT(user.ID.Hex())
