@@ -1073,6 +1073,62 @@ func getOpenAPISpecWithURL(baseURL string) *OpenAPISpec {
 					},
 				},
 			},
+			"/api/v1/movies/{id}/external-ids": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Внешние идентификаторы фильма",
+					"description": "Получить внешние ID (IMDb, TVDB, Facebook и др.) для фильма по TMDB ID",
+					"tags": []string{"Movies"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID фильма в TMDB",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Внешние идентификаторы фильма",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/ExternalIDs",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/api/v1/tv/{id}/external-ids": map[string]interface{}{
+				"get": map[string]interface{}{
+					"summary": "Внешние идентификаторы сериала",
+					"description": "Получить внешние ID (IMDb, TVDB, Facebook и др.) для сериала по TMDB ID",
+					"tags": []string{"TV Series"},
+					"parameters": []map[string]interface{}{
+						{
+							"name": "id",
+							"in": "path",
+							"required": true,
+							"schema": map[string]string{"type": "integer"},
+							"description": "ID сериала в TMDB",
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "Внешние идентификаторы сериала",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"$ref": "#/components/schemas/ExternalIDs",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		Components: Components{
 			SecuritySchemes: map[string]SecurityScheme{
@@ -1256,6 +1312,18 @@ func getOpenAPISpecWithURL(baseURL string) *OpenAPISpec {
 						"like": map[string]string{"type": "integer"},
 						"dislike": map[string]string{"type": "integer"},
 						"love": map[string]string{"type": "integer"},
+					},
+				},
+				"ExternalIDs": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"id": map[string]string{"type": "integer"},
+						"imdb_id": map[string]string{"type": "string"},
+						"tvdb_id": map[string]string{"type": "integer"},
+						"wikidata_id": map[string]string{"type": "string"},
+						"facebook_id": map[string]string{"type": "string"},
+						"instagram_id": map[string]string{"type": "string"},
+						"twitter_id": map[string]string{"type": "string"},
 					},
 				},
 			},
