@@ -785,6 +785,91 @@ func (s *TorrentService) GetAvailableSeasons(title, originalTitle, year string) 
 	return seasons, nil
 }
 
+// SearchByImdb - поиск по IMDB ID (movie/serial/anime) как в redapi.service.js
+func (s *TorrentService) SearchByImdb(imdbID, contentType string, season *int) ([]models.TorrentResult, error) {
+	if imdbID == "" || !strings.HasPrefix(imdbID, "tt") {
+		return nil, fmt.Errorf("Неверный формат IMDB ID. Должен быть в формате tt1234567")
+	}
+
+	// Получаем инфу о фильме через Alloha
+	title, originalTitle, year, _ := s.getMovieInfoByIMDB(imdbID)
+
+	params := map[string]string{
+		"imdb": imdbID,
+	}
+
+	switch contentType {
+	case "movie":
+		params["is_serial"] = "1"
+		params["category"] = "2000"
+	case "serial":
+		params["is_serial"] = "2"
+		params["category"] = "5000"
+	case "anime":
+		params["is_serial"] = "5"
+		params["category"] = "5070"
+	default:
+		params["is_serial"] = "1"
+		params["category"] = "2000"
+	}
+
+	if title != "" {
+		params["title"] = title
+	}
+	if originalTitle != "" {
+		params["title_original"] = originalTitle
+	}
+	if year != "" {
+		params["year"] = year
+	}
+	if season != nil && *season > 0 {
+		params["season"] = strconv.Itoa(*season)
+	}
+
+	resp, err := s.SearchTorrents(params)
+	if err != nil {
+		return nil, err
+	}
+	results := resp.Results
+
+	// Fallback для сериалов: если указан сезон и результатов мало, ищем без сезона и фильтруем на клиенте
+	if contentType == "serial" && season != nil && len(results) < 5 {
+		paramsNoSeason := map[string]string{
+			"imdb": imdbID,
+			"is_serial": "2",
+			"category": "5000",
+		}
+		if title != "" {
+			paramsNoSeason["title"] = title
+		}
+		if originalTitle != "" {
+			paramsNoSeason["title_original"] = originalTitle
+		}
+		if year != "" {
+			paramsNoSeason["year"] = year
+		}
+		fallbackResp, err := s.SearchTorrents(paramsNoSeason)
+		if err == nil {
+			filtered := s.filterBySeason(fallbackResp.Results, *season)
+			// Объединяем и убираем дубликаты по MagnetLink
+			all := append(results, filtered...)
+			unique := make([]models.TorrentResult, 0, len(all))
+			seen := make(map[string]bool)
+			for _, t := range all {
+				if !seen[t.MagnetLink] {
+					unique = append(unique, t)
+					seen[t.MagnetLink] = true
+				}
+			}
+			results = unique
+		}
+	}
+
+	// Фильтрация по типу контента (movie/serial/anime)
+	results = s.FilterByContentType(results, contentType)
+	return results, nil
+}
+
 // Вспомогательные функции
 func (s *TorrentService) qualityMeetsMinimum(quality, minQuality string) bool {
 	qualityOrder := map[string]int{
