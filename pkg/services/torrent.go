@@ -316,8 +316,66 @@ func (s *TorrentService) SearchAnime(title, originalTitle, year string) (*models
 	return response, nil
 }
 
-// getTitleFromTMDB - получение информации из TMDB
+// AllohaResponse - структура ответа от Alloha API
+type AllohaResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		Name         string `json:"name"`
+		OriginalName string `json:"original_name"`
+		Year         int    `json:"year"`
+		Category     int    `json:"category"` // 1-фильм, 2-сериал
+	} `json:"data"`
+}
+
+// getMovieInfoByIMDB - получение информации через Alloha API (как в JavaScript версии)
+func (s *TorrentService) getMovieInfoByIMDB(imdbID string) (string, string, string, error) {
+	// Используем тот же токен что и в JavaScript версии
+	endpoint := fmt.Sprintf("https://api.alloha.tv/?token=04941a9a3ca3ac16e2b4327347bbc1&imdb=%s", imdbID)
+	
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return "", "", "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	var allohaResponse AllohaResponse
+	if err := json.Unmarshal(body, &allohaResponse); err != nil {
+		return "", "", "", err
+	}
+
+	if allohaResponse.Status != "success" {
+		return "", "", "", fmt.Errorf("no results found for IMDB ID: %s", imdbID)
+	}
+
+	title := allohaResponse.Data.Name
+	originalTitle := allohaResponse.Data.OriginalName
+	year := ""
+	if allohaResponse.Data.Year > 0 {
+		year = strconv.Itoa(allohaResponse.Data.Year)
+	}
+
+	return title, originalTitle, year, nil
+}
+
+// getTitleFromTMDB - получение информации из TMDB (с fallback на Alloha API)
 func (s *TorrentService) getTitleFromTMDB(tmdbService *TMDBService, imdbID, mediaType string) (string, string, string, error) {
+	// Сначала пробуем Alloha API (как в JavaScript версии)
+	title, originalTitle, year, err := s.getMovieInfoByIMDB(imdbID)
+	if err == nil {
+		return title, originalTitle, year, nil
+	}
+
+	// Если Alloha API не работает, пробуем TMDB API
 	endpoint := fmt.Sprintf("https://api.themoviedb.org/3/find/%s", imdbID)
 	
 	req, err := http.NewRequest("GET", endpoint, nil)
