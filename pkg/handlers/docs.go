@@ -268,7 +268,14 @@ func getOpenAPISpecWithURL(baseURL string) *OpenAPISpec {
 							"in": "path",
 							"required": true,
 							"schema": map[string]string{"type": "string"},
-							"description": "IMDB ID фильма",
+							"description": "IMDB ID фильма или сериала",
+						},
+						{
+							"name": "type",
+							"in": "query",
+							"required": true,
+							"schema": map[string]interface{}{"type": "string", "enum": []string{"movie", "tv"}},
+							"description": "Тип контента: movie (фильм) или tv (сериал)",
 						},
 					},
 					"responses": map[string]interface{}{
