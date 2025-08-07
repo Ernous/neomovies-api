@@ -183,3 +183,24 @@ func (h *TVHandler) GetSimilar(w http.ResponseWriter, r *http.Request) {
 		Data:    tvShows,
 	})
 }
+
+func (h *TVHandler) GetExternalIDs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid TV show ID", http.StatusBadRequest)
+		return
+	}
+
+	externalIDs, err := h.tvService.GetExternalIDs(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.APIResponse{
+		Success: true,
+		Data:    externalIDs,
+	})
+}

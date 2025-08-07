@@ -49,3 +49,7 @@ func (s *TVService) GetRecommendations(id, page int, language string) (*models.T
 func (s *TVService) GetSimilar(id, page int, language string) (*models.TMDBTVResponse, error) {
 	return s.tmdb.GetSimilarTVShows(id, page, language)
 }
+
+func (s *TVService) GetExternalIDs(id int) (*models.ExternalIDs, error) {
+	return s.tmdb.GetTVExternalIDs(id)
+}

@@ -123,6 +123,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	api.HandleFunc("/movies/{id}", movieHandler.GetByID).Methods("GET")
 	api.HandleFunc("/movies/{id}/recommendations", movieHandler.GetRecommendations).Methods("GET")
 	api.HandleFunc("/movies/{id}/similar", movieHandler.GetSimilar).Methods("GET")
+	api.HandleFunc("/movies/{id}/external-ids", movieHandler.GetExternalIDs).Methods("GET")
 
 	// Маршруты для сериалов
 	api.HandleFunc("/tv/search", tvHandler.Search).Methods("GET")
@@ -133,6 +134,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	api.HandleFunc("/tv/{id}", tvHandler.GetByID).Methods("GET")
 	api.HandleFunc("/tv/{id}/recommendations", tvHandler.GetRecommendations).Methods("GET")
 	api.HandleFunc("/tv/{id}/similar", tvHandler.GetSimilar).Methods("GET")
+	api.HandleFunc("/tv/{id}/external-ids", tvHandler.GetExternalIDs).Methods("GET")
 
 	// Приватные маршруты (требуют авторизации)
 	protected := api.PathPrefix("").Subrouter()
