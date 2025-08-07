@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"neomovies-api/pkg/config"
-	"neomovies-api/pkg/models"
 	"github.com/gorilla/mux"
 )
 
