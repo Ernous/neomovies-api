@@ -24,11 +24,98 @@ type AuthService struct {
 }
 
 func NewAuthService(db *mongo.Database, jwtSecret string, emailService *EmailService) *AuthService {
-	return &AuthService{
+	service := &AuthService{
 		db:           db,
 		jwtSecret:    jwtSecret,
 		emailService: emailService,
 	}
+	
+	// Запускаем тест подключения к базе данных
+	go service.testDatabaseConnection()
+	
+	return service
+}
+
+// testDatabaseConnection тестирует подключение к базе данных и выводит информацию о пользователях
+func (s *AuthService) testDatabaseConnection() {
+	ctx := context.Background()
+	
+	fmt.Println("=== DATABASE CONNECTION TEST ===")
+	
+	// Проверяем подключение
+	err := s.db.Client().Ping(ctx, nil)
+	if err != nil {
+		fmt.Printf("❌ Database connection failed: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("✅ Database connection successful\n")
+	fmt.Printf("📊 Database name: %s\n", s.db.Name())
+	
+	// Получаем список всех коллекций
+	collections, err := s.db.ListCollectionNames(ctx, bson.M{})
+	if err != nil {
+		fmt.Printf("❌ Failed to list collections: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("📁 Available collections: %v\n", collections)
+	
+	// Проверяем коллекцию users
+	collection := s.db.Collection("users")
+	
+	// Подсчитываем количество документов
+	count, err := collection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		fmt.Printf("❌ Failed to count users: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("👥 Total users in database: %d\n", count)
+	
+	if count > 0 {
+		// Показываем всех пользователей
+		cursor, err := collection.Find(ctx, bson.M{})
+		if err != nil {
+			fmt.Printf("❌ Failed to find users: %v\n", err)
+			return
+		}
+		defer cursor.Close(ctx)
+		
+		var users []bson.M
+		if err := cursor.All(ctx, &users); err != nil {
+			fmt.Printf("❌ Failed to decode users: %v\n", err)
+			return
+		}
+		
+		fmt.Printf("📋 All users in database:\n")
+		for i, user := range users {
+			fmt.Printf("  %d. Email: %s, Name: %s, Verified: %v\n", 
+				i+1, 
+				user["email"], 
+				user["name"], 
+				user["verified"])
+		}
+		
+		// Тестируем поиск конкретного пользователя
+		fmt.Printf("\n🔍 Testing specific user search:\n")
+		testEmails := []string{"neo.movies.mail@gmail.com", "fenixoffc@gmail.com", "test@example.com"}
+		
+		for _, email := range testEmails {
+			var user bson.M
+			err := collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
+			if err != nil {
+				fmt.Printf("  ❌ User %s: NOT FOUND (%v)\n", email, err)
+			} else {
+				fmt.Printf("  ✅ User %s: FOUND (Name: %s, Verified: %v)\n", 
+					email, 
+					user["name"], 
+					user["verified"])
+			}
+		}
+	}
+	
+	fmt.Println("=== END DATABASE TEST ===")
 }
 
 // Генерация 6-значного кода
@@ -91,10 +178,15 @@ func (s *AuthService) Register(req models.RegisterRequest) (map[string]interface
 func (s *AuthService) Login(req models.LoginRequest) (*models.AuthResponse, error) {
 	collection := s.db.Collection("users")
 
+	fmt.Printf("🔍 Login attempt for email: %s\n", req.Email)
+	fmt.Printf("📊 Database name: %s\n", s.db.Name())
+	fmt.Printf("📁 Collection name: %s\n", collection.Name())
+
 	// Находим пользователя по email (точно как в JavaScript)
 	var user models.User
 	err := collection.FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
+		fmt.Printf("❌ User not found: %v\n", err)
 		return nil, errors.New("User not found")
 	}
 
