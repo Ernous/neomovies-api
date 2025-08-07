@@ -25,6 +25,7 @@ func NewPlayersHandler(cfg *config.Config) *PlayersHandler {
 func (h *PlayersHandler) GetAllohaPlayer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	imdbID := vars["imdb_id"]
+	fmt.Println("===> Alloha handler called, imdbID:", imdbID)
 	if imdbID == "" {
 		http.Error(w, "imdb_id path param is required", http.StatusBadRequest)
 		return
@@ -50,6 +51,7 @@ func (h *PlayersHandler) GetAllohaPlayer(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Failed to read Alloha response", http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("Alloha API raw response:", string(body))
 	var allohaResponse struct {
 		Status string `json:"status"`
 		Data struct {
@@ -57,9 +59,11 @@ func (h *PlayersHandler) GetAllohaPlayer(w http.ResponseWriter, r *http.Request)
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &allohaResponse); err != nil {
+		fmt.Println("Alloha API JSON unmarshal error:", err)
 		http.Error(w, "Invalid JSON from Alloha", http.StatusBadGateway)
 		return
 	}
+	fmt.Printf("Parsed: status=%s, iframe=%s\n", allohaResponse.Status, allohaResponse.Data.Iframe)
 	if allohaResponse.Status != "success" || allohaResponse.Data.Iframe == "" {
 		http.Error(w, "Video not found", http.StatusNotFound)
 		return
