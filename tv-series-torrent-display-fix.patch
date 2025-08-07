@@ -1,0 +1,284 @@
+From edb41e106e5e94a5ebcf52acde8a4dde83afa144 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Thu, 7 Aug 2025 09:45:04 +0000
+Subject: [PATCH] Improve TV series torrent display and fix IMDB ID fetching
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+🔧 Fixed Issues:
+- Fixed IMDB ID fetching for TV shows (tvAPI -> tvShowsAPI)
+- Corrected API call format for getImdbId method
+
+✨ Enhanced TV Series Torrent Display:
+- Redesigned torrent cards with better information layout
+- Added quality badges and seeder counts
+- Display voice-over information with smart truncation
+- Improved season selection with loading indicators
+- Better error handling with retry functionality
+- Enhanced user feedback for different states
+
+🎨 UI/UX Improvements:
+- Modern card-based torrent layout
+- Separate 'Select' and 'Download' buttons
+- Season-specific error messages
+- Loading states for season switching
+- Better responsive design for torrent information
+
+�� User Experience:
+- Clear visual hierarchy for torrent information
+- Improved accessibility with proper button labeling
+- Better error messages with actionable solutions
+- Smooth transitions and hover effects
+
+Resolves issues with TV series torrent display and improves overall user experience
+---
+ public/sitemap-0.xml               |  20 ++---
+ src/app/tv/[id]/TVContent.tsx      |   6 +-
+ src/components/TorrentSelector.tsx | 139 ++++++++++++++++++++++-------
+ 3 files changed, 119 insertions(+), 46 deletions(-)
+
+diff --git a/public/sitemap-0.xml b/public/sitemap-0.xml
+index b20dcfe..9772157 100644
+--- a/public/sitemap-0.xml
++++ b/public/sitemap-0.xml
+@@ -1,13 +1,13 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+-<url><loc>https://neomovies.ru/admin/login</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/categories</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/favorites</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/login</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/profile</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/search</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/settings</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/terms</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+-<url><loc>https://neomovies.ru/verify</loc><lastmod>2025-08-06T19:40:42.384Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/admin/login</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/categories</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/favorites</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/login</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/profile</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/search</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/settings</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/terms</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
++<url><loc>https://neomovies.ru/verify</loc><lastmod>2025-08-07T09:44:47.976Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+ </urlset>
+\ No newline at end of file
+diff --git a/src/app/tv/[id]/TVContent.tsx b/src/app/tv/[id]/TVContent.tsx
+index d3a4a4d..f1be01d 100644
+--- a/src/app/tv/[id]/TVContent.tsx
++++ b/src/app/tv/[id]/TVContent.tsx
+@@ -29,9 +29,9 @@ export default function TVContent({ showId, initialShow }: TVContentProps) {
+     const fetchImdbId = async () => {
+       try {
+         // Используем dedicated эндпоинт для получения IMDb ID
+-        const { data } = await tvAPI.getImdbId(showId);
+-        if (data?.imdb_id) {
+-          setImdbId(data.imdb_id);
++        const imdbIdResult = await tvShowsAPI.getImdbId(showId);
++        if (imdbIdResult) {
++          setImdbId(imdbIdResult);
+         }
+       } catch (err) {
+         console.error('Error fetching IMDb ID:', err);
+diff --git a/src/components/TorrentSelector.tsx b/src/components/TorrentSelector.tsx
+index 20caee7..0cc8120 100644
+--- a/src/components/TorrentSelector.tsx
++++ b/src/components/TorrentSelector.tsx
+@@ -77,13 +77,22 @@ export default function TorrentSelector({ imdbId, type, title, originalTitle, ye
+       }
+       const response = await torrentsAPI.searchTorrents(imdbId!, type, options);
+       if (response.data.total === 0) {
+-        setError('Торренты не найдены.');
++        const errorMsg = type === 'tv' && selectedSeason 
++          ? `Торренты для сезона ${selectedSeason} не найдены. Попробуйте другой сезон.`
++          : 'Торренты не найдены. Возможно, они еще не добавлены в базу.';
++        setError(errorMsg);
++        setTorrents([]);
+       } else {
+         setTorrents(response.data.results);
++        setError(null);
+       }
+-    } catch (err) {
+-      console.error(err);
+-      setError('Не удалось загрузить список торрентов.');
++    } catch (err: any) {
++      console.error('Error fetching torrents:', err);
++      const errorMsg = err?.response?.status === 404 
++        ? 'Торренты для этого контента не найдены.'
++        : 'Не удалось загрузить список торрентов. Проверьте подключение к интернету.';
++      setError(errorMsg);
++      setTorrents([]);
+     } finally {
+       setLoading(false);
+     }
+@@ -112,20 +121,41 @@ export default function TorrentSelector({ imdbId, type, title, originalTitle, ye
+ 
+   if (error) {
+     return (
+-      <div className="mt-4 flex items-center gap-2 rounded-md bg-red-100 p-3 text-sm text-red-700">
+-        <AlertTriangle size={20} />
+-        <span>{error}</span>
++      <div className="mt-4 space-y-3">
++        <div className="flex items-center gap-2 rounded-md bg-red-100 p-3 text-sm text-red-700">
++          <AlertTriangle size={20} />
++          <span className="flex-1">{error}</span>
++        </div>
++        <Button 
++          onClick={fetchTorrents} 
++          variant="outline" 
++          size="sm"
++          disabled={loading}
++          className="w-full"
++        >
++          {loading ? (
++            <>
++              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
++              Загрузка...
++            </>
++          ) : (
++            'Попробовать еще раз'
++          )}
++        </Button>
+       </div>
+     );
+   }
+ 
+-  if (!torrents) return null;
++  if (!torrents && !loading && !error) return null;
+ 
+   const renderTorrentButtons = (list: TorrentResult[]) => {
+     if (!list?.length) {
+       return (
+         <p className="text-sm text-muted-foreground">
+-          Торрентов для выбранного сезона нет.
++          {type === 'tv' && selectedSeason 
++            ? `Торрентов для сезона ${selectedSeason} нет.` 
++            : 'Торрентов не найдено.'
++          }
+         </p>
+       );
+     }
+@@ -141,28 +171,60 @@ export default function TorrentSelector({ imdbId, type, title, originalTitle, ye
+           sizeLabel = torrent.size;
+         }
+       }
++      
+       const label = torrent.title || 'Раздача';
++      const qualityInfo = torrent.quality ? `${torrent.quality}` : '';
++      const seedersInfo = torrent.seeders ? `${torrent.seeders} сидов` : '';
+ 
+       return (
+-        <Button
+-          key={torrent.magnet}
+-          asChild
+-          onClick={() => handleQualitySelect(torrent)}
+-          variant="outline"
+-          className="w-full items-center text-left px-3 py-2"
+-        >
+-          <a
+-            href={torrent.magnet}
+-            target="_blank"
+-            rel="noopener noreferrer"
+-            className="flex w-full items-center"
+-          >
+-            <span className="flex-1 truncate whitespace-nowrap overflow-hidden">{label}</span>
+-            {sizeLabel && (
+-              <span className="text-xs text-muted-foreground">{sizeLabel}</span>
+-            )}
+-          </a>
+-        </Button>
++        <div key={torrent.magnet} className="border rounded-lg p-3 space-y-2 hover:bg-secondary/50 transition-colors">
++          <div className="flex items-start justify-between gap-2">
++            <h4 className="font-medium text-sm leading-tight flex-1">{label}</h4>
++            <div className="flex items-center gap-2 text-xs text-muted-foreground">
++              {qualityInfo && <span className="bg-primary/10 text-primary px-2 py-1 rounded">{qualityInfo}</span>}
++              {seedersInfo && <span>{seedersInfo}</span>}
++              {sizeLabel && <span>{sizeLabel}</span>}
++            </div>
++          </div>
++          
++          {torrent.voice && torrent.voice.length > 0 && (
++            <div className="flex flex-wrap gap-1">
++              {torrent.voice.slice(0, 3).map((voice, idx) => (
++                <span key={idx} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded">
++                  {voice}
++                </span>
++              ))}
++              {torrent.voice.length > 3 && (
++                <span className="text-xs text-muted-foreground">+{torrent.voice.length - 3}</span>
++              )}
++            </div>
++          )}
++          
++          <div className="flex gap-2">
++            <Button
++              onClick={() => handleQualitySelect(torrent)}
++              variant="outline"
++              size="sm"
++              className="flex-1"
++            >
++              Выбрать
++            </Button>
++            <Button
++              asChild
++              variant="default"
++              size="sm"
++              className="flex-1"
++            >
++              <a
++                href={torrent.magnet}
++                target="_blank"
++                rel="noopener noreferrer"
++              >
++                Скачать
++              </a>
++            </Button>
++          </div>
++        </div>
+       );
+     });
+   };
+@@ -178,8 +240,14 @@ export default function TorrentSelector({ imdbId, type, title, originalTitle, ye
+                 key={season} 
+                 onClick={() => {setSelectedSeason(season); setSelectedMagnet(null);}} 
+                 variant={selectedSeason === season ? 'default' : 'outline'}
++                disabled={loading}
++                className="min-w-[80px]"
+               >
+-                Сезон {season}
++                {loading && selectedSeason === season ? (
++                  <Loader2 className="h-4 w-4 animate-spin" />
++                ) : (
++                  `Сезон ${season}`
++                )}
+               </Button>
+             ))}
+           </div>
+@@ -187,11 +255,16 @@ export default function TorrentSelector({ imdbId, type, title, originalTitle, ye
+       )}
+ 
+       {/* Для сериалов: показываем раздачи если выбран сезон или если сезонов нет вообще */}
+-      {(type === 'movie' || (type === 'tv' && (selectedSeason || availableSeasons.length === 0)) ) && torrents && (
++      {(type === 'movie' || (type === 'tv' && (selectedSeason || availableSeasons.length === 0))) && (
+         <div>
+-          <h3 className="text-lg font-semibold mb-2">Раздачи</h3>
+-          <div className="space-y-2">
+-            {renderTorrentButtons(torrents)}
++          <h3 className="text-lg font-semibold mb-2">
++            {type === 'tv' && selectedSeason 
++              ? `Раздачи - Сезон ${selectedSeason}` 
++              : 'Раздачи'
++            }
++          </h3>
++          <div className="space-y-3">
++            {renderTorrentButtons(torrents || [])}
+           </div>
+         </div>
+       )}
+-- 
+2.48.1
+
