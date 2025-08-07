@@ -69,6 +69,9 @@ func (h *PlayersHandler) GetAllohaPlayer(w http.ResponseWriter, r *http.Request)
 		iframeCode = fmt.Sprintf(`<iframe src="%s" allowfullscreen style="border:none;width:100%%;height:100%%"></iframe>`, iframeCode)
 	}
 	htmlDoc := fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Alloha Player</title><style>html,body{margin:0;height:100%%;}</style></head><body>%s</body></html>`, iframeCode)
+	// Авто-исправление экранированных кавычек
+	htmlDoc = strings.ReplaceAll(htmlDoc, `\"`, `"`)
+	htmlDoc = strings.ReplaceAll(htmlDoc, `\'`, `'`)
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(htmlDoc))
 }
