@@ -78,10 +78,9 @@ func (h *PlayersHandler) GetAllohaPlayer(w http.ResponseWriter, r *http.Request)
 func (h *PlayersHandler) GetLumexPlayer(w http.ResponseWriter, r *http.Request) {
 	imdbID := r.URL.Query().Get("imdb_id")
 	tmdbID := r.URL.Query().Get("tmdb_id")
-	kinopoiskID := r.URL.Query().Get("kinopoisk_id")
 
-	if imdbID == "" && tmdbID == "" && kinopoiskID == "" {
-		http.Error(w, "imdb_id, tmdb_id or kinopoisk_id query param is required", http.StatusBadRequest)
+	if imdbID == "" && tmdbID == "" {
+		http.Error(w, "imdb_id or tmdb_id query param is required", http.StatusBadRequest)
 		return
 	}
 
@@ -97,9 +96,6 @@ func (h *PlayersHandler) GetLumexPlayer(w http.ResponseWriter, r *http.Request) 
 	}
 	if tmdbID != "" {
 		params.Set("tmdb_id", tmdbID)
-	}
-	if kinopoiskID != "" {
-		params.Set("kinopoisk_id", kinopoiskID)
 	}
 
 	apiURL := fmt.Sprintf("%s?%s", h.config.LumexURL, params.Encode())
