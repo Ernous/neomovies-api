@@ -66,7 +66,7 @@ func (h *PlayersHandler) GetAllohaPlayer(w http.ResponseWriter, r *http.Request)
 	}
 	iframeCode := allohaResponse.Data.Iframe
 	if !strings.Contains(iframeCode, "<") {
-		iframeCode = fmt.Sprintf(`<iframe src=\"%s\" allowfullscreen style=\"border:none;width:100%%;height:100%%\"></iframe>`, iframeCode)
+		iframeCode = fmt.Sprintf(`<iframe src="%s" allowfullscreen style="border:none;width:100%%;height:100%%"></iframe>`, iframeCode)
 	}
 	htmlDoc := fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Alloha Player</title><style>html,body{margin:0;height:100%%;}</style></head><body>%s</body></html>`, iframeCode)
 	w.Header().Set("Content-Type", "text/html")
@@ -85,7 +85,7 @@ func (h *PlayersHandler) GetLumexPlayer(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	url := fmt.Sprintf("%s?imdb_id=%s", h.config.LumexURL, url.QueryEscape(imdbID))
-	iframe := fmt.Sprintf(`<iframe src=\"%s\" allowfullscreen loading=\"lazy\" style=\"border:none;width:100%%;height:100%%;\"></iframe>`, url)
+	iframe := fmt.Sprintf(`<iframe src="%s" allowfullscreen loading="lazy" style="border:none;width:100%%;height:100%%;"></iframe>`, url)
 	htmlDoc := fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Lumex Player</title><style>html,body{margin:0;height:100%%;}</style></head><body>%s</body></html>`, iframe)
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(htmlDoc))
